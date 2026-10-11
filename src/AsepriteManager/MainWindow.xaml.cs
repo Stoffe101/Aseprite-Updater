@@ -524,6 +524,12 @@ public partial class MainWindow : Window
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Launch failed"); }
     }
 
+    private void OpenLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        var window = new LibraryWindow(_manager) { Owner = this };
+        window.ShowDialog();
+    }
+
     private void OpenLog_Click(object sender, RoutedEventArgs e)
     {
         try

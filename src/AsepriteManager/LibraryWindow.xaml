@@ -1,0 +1,191 @@
+<Window x:Class="AsepriteManager.LibraryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Aseprite Manager • Resource Library" Width="1050" Height="780"
+        MinWidth="850" MinHeight="625" WindowStartupLocation="CenterOwner"
+        Background="#0C1220" Foreground="#F4F5FB" FontFamily="Segoe UI"
+        FontSize="14" UseLayoutRounding="True">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Panel" Color="#172137"/>
+        <Style TargetType="Button">
+            <Setter Property="MinWidth" Value="130"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Padding" Value="13,8"/>
+            <Setter Property="Margin" Value="0,0,10,9"/>
+            <Setter Property="Foreground" Value="#F4F5FF"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="#344461"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonSurface" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.82"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.36"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="#101A2D"/>
+            <Setter Property="Foreground" Value="#F2F5FF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="#F3F4FA"/>
+            <Setter Property="Padding" Value="12,12"/>
+            <Setter Property="Margin" Value="4,3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Cell" Background="Transparent" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Cell" Property="Background" Value="#514879"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Cell" Property="Background" Value="#354664"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#0D1729"/>
+            <Setter Property="Foreground" Value="#F1F4FC"/>
+            <Setter Property="CaretBrush" Value="#D9B9FF"/>
+            <Setter Property="BorderBrush" Value="#405271"/>
+            <Setter Property="Padding" Value="11,9"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="#0C1220">
+        <Grid.RowDefinitions><RowDefinition Height="5"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="#8068DD"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="27,24,27,25">
+                <TextBlock Text="ASEPRITE MANAGER  /  CREATOR'S LIBRARY"
+                           Foreground="#B7A7F4" FontWeight="Bold" FontSize="12"/>
+                <TextBlock Text="Useful tools. Less busywork." FontSize="27" FontWeight="Bold"
+                           TextWrapping="Wrap" Margin="0,7,0,5"/>
+                <TextBlock Text="Curated for PixelTown's square-grid terrain, small characters, equipment layers and Godot asset workflow."
+                           Foreground="#B5C1DA" TextWrapping="Wrap" Margin="0,0,0,20"/>
+
+                <Border Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
+                        CornerRadius="12" Padding="17" Margin="0,0,0,17">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="225"/></Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,10,0">
+                            <TextBlock Text="PIXELTOWN STARTER KIT" Foreground="#CBB8FF"
+                                       FontSize="12" FontWeight="Bold"/>
+                            <TextBlock Text="Install the four curated sprite-production scripts and your local prototype palette."
+                                       TextWrapping="Wrap" Foreground="#D4DCF3" Margin="0,6,0,0"/>
+                        </StackPanel>
+                        <Button x:Name="StarterKitButton" Grid.Column="1" Content="Set up PixelTown kit"
+                                Background="#7357D4" Click="StarterKit_Click" Margin="0"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <Grid Margin="0,0,0,17">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="310"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource Panel}" Padding="15"
+                            BorderThickness="1" BorderBrush="#36445E" CornerRadius="12">
+                        <StackPanel>
+                            <TextBlock Text="AUDITED ASEPRITE TOOLS" FontSize="12" FontWeight="Bold"
+                                       Foreground="#B0BEE0" Margin="0,0,0,10"/>
+                            <TextBox x:Name="ToolSearch" Height="40" VerticalContentAlignment="Center"
+                                     TextChanged="Search_Changed" ToolTip="Search by name, category or use case"/>
+                            <ListBox x:Name="ToolList" Margin="0,10,0,0" Height="260"
+                                     SelectionChanged="ToolList_SelectionChanged"
+                                     DisplayMemberPath="Name"/>
+                            <TextBlock Text="Official Aseprite examples • MIT licensed"
+                                       Foreground="#8FA3C0" FontSize="11" TextWrapping="Wrap"
+                                       Margin="0,11,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Background="{StaticResource Panel}" Padding="19"
+                            BorderThickness="1" BorderBrush="#36445E" CornerRadius="12">
+                        <StackPanel>
+                            <TextBlock x:Name="ToolCategory" Text="TOOLS" Foreground="#AE9CFF"
+                                       FontWeight="Bold" FontSize="12"/>
+                            <TextBlock x:Name="ToolTitle" Text="Choose a tool" FontSize="22"
+                                       FontWeight="Bold" Margin="0,9,0,6" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="ToolDescription" Text="Select a resource from the left."
+                                       TextWrapping="Wrap" Foreground="#D2D9E9"/>
+                            <TextBlock x:Name="ToolPixelTown" TextWrapping="Wrap" Foreground="#AFC5DF"
+                                       Margin="0,13,0,9"/>
+                            <TextBlock x:Name="ToolStatus" Foreground="#B5A8F3" TextWrapping="Wrap"
+                                       Margin="0,0,0,12"/>
+                            <WrapPanel>
+                                <Button x:Name="InstallToolButton" Content="Install selected"
+                                        Background="#7357D4" Click="InstallTool_Click"/>
+                                <Button x:Name="RemoveToolButton" Content="Uninstall" Click="RemoveTool_Click"/>
+                                <Button Content="View source" Click="OpenToolSource_Click"/>
+                            </WrapPanel>
+                            <TextBlock Text="Lua scripts can execute code. Only the explicitly reviewed, upstream examples are offered for direct installation. Confirm each install and review the source first."
+                                       Foreground="#8498B4" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Background="{StaticResource Panel}" BorderThickness="1"
+                        BorderBrush="#36445E" Padding="19" CornerRadius="12" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="PALETTE WORKSHOP" FontWeight="Bold" Foreground="#AE9CFF" FontSize="12"/>
+                        <TextBlock Text="Extract from PixelTown or import your own .gpl files"
+                                   FontSize="20" FontWeight="Bold" TextWrapping="Wrap" Margin="0,8,0,6"/>
+                        <TextBlock Text="Use your project's existing colors to start a consistent palette. This only reads local files and installs a new palette preset, without editing PixelTown or changing the palette of an open sprite."
+                                   TextWrapping="Wrap" Foreground="#B6C5DB" Margin="0,0,0,14"/>
+                        <WrapPanel>
+                            <Button Content="Extract PixelTown palette" Click="ExtractPalette_Click"
+                                    Background="#6557B1" MinWidth="220"/>
+                            <Button Content="Extract full draft (206)" Click="ExtractFullPalette_Click"
+                                    MinWidth="184"/>
+                            <Button Content="Import local GPL palette" Click="ImportPalette_Click"
+                                    MinWidth="204"/>
+                            <Button Content="Open Aseprite palette folder" Click="OpenExtensions_Click"
+                                    MinWidth="215"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="PaletteStatus" Foreground="#B7C5E1" TextWrapping="Wrap"
+                                   Text="PixelTown's current art is a prototype; extracted colors are not an approved final palette."/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#17243A" BorderThickness="1" BorderBrush="#354762"
+                        Padding="16" CornerRadius="12">
+                    <StackPanel>
+                        <TextBlock Text="INSTALLATION ACTIVITY" Foreground="#AE9CFF"
+                                   FontWeight="Bold" FontSize="12"/>
+                        <TextBlock x:Name="LibraryStatus" Text="Ready" TextWrapping="Wrap"
+                                   Foreground="#DCE5F6" Margin="0,9,0,12"/>
+                        <WrapPanel>
+                            <Button Content="Check tool updates" Click="CheckTools_Click"/>
+                            <Button Content="Update managed tools" Click="UpdateTools_Click"
+                                    Background="#6655A6"/>
+                            <Button Content="Open scripts folder" Click="OpenScripts_Click"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

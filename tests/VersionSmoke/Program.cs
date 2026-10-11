@@ -227,3 +227,81 @@ if (args.Contains("--theme-integration"))
         finally { try { Directory.Delete(dir, recursive: true); } catch { } }
     }
 }
+
+
+// The PixelTown palette extractor only reads local source and keeps draft
+// colors outside the public Aseprite Manager repository.
+var pixelTownScratch = Path.Combine(Path.GetTempPath(),
+    "PixelTown art example " + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(Path.Combine(pixelTownScratch, "art"));
+try
+{
+    File.WriteAllText(Path.Combine(pixelTownScratch, "project.godot"), "[application]");
+    File.WriteAllText(Path.Combine(pixelTownScratch, "art", "world_canvas.gd"),
+        "const DIRT = Color(\"#a7865d\")\n" +
+        "const ROOF = Color(\"#b66549\")\n" +
+        "_box(0,0,16,16,Color(\"#a7865d\"))\n");
+    var generated = WorkshopLibrary.ExtractPixelTownPalette(pixelTownScratch);
+    WorkshopLibrary.ValidateGpl(generated);
+    if (!generated.Contains("167 134  93") ||
+        !generated.Contains("182 101  73"))
+        throw new Exception("Color extraction failed or was not RGB accurate.");
+    if (generated.Split('\n').Count(x => x.TrimEnd().EndsWith("DIRT")) != 1)
+        throw new Exception("Duplicate colors were not eliminated.");
+    try
+    {
+        WorkshopLibrary.ValidateGpl("GIMP Palette\n 300 0 0 Bad\n 0 0 0 Black\n");
+        throw new Exception("Out-of-range GIMP channel should be rejected.");
+    }
+    catch (InvalidDataException) { }
+
+    // Existing managed resources with local edits must not be silently
+    // replaced. Run only in disposable test directories, not Aseprite's.
+    var root = Path.Combine(pixelTownScratch, "resources");
+    var target = Path.Combine(root, "managed-unit");
+    var stage = Path.Combine(root, "stage");
+    var receiptPath = Path.Combine(root, "unit.json");
+    Directory.CreateDirectory(stage);
+    File.WriteAllText(Path.Combine(stage, "example.lua"), "original");
+    var originalHash = Convert.ToHexString(
+        System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("original")));
+    WorkshopLibrary.ReplaceManaged(target, stage, receiptPath,
+        new LibraryReceipt("unit", "a", new Dictionary<string, string> {
+            ["example.lua"] = originalHash
+        }), _ => { });
+    File.WriteAllText(Path.Combine(target, "example.lua"), "customized");
+    var anotherStage = Path.Combine(root, "new-stage");
+    Directory.CreateDirectory(anotherStage);
+    File.WriteAllText(Path.Combine(anotherStage, "example.lua"), "replacement");
+    try
+    {
+        WorkshopLibrary.ReplaceManaged(target, anotherStage, receiptPath,
+            new LibraryReceipt("unit", "b", new Dictionary<string,string> {
+                ["example.lua"] = "different-hash"
+            }), _ => { });
+        throw new Exception("Customized resource was overwritten.");
+    }
+    catch (InvalidOperationException) { }
+    if (File.ReadAllText(Path.Combine(target, "example.lua")) != "customized")
+        throw new Exception("Custom resource wasn't preserved.");
+    Console.WriteLine("PASS: local PixelTown palette extraction and safe managed script overwrite protection.");
+}
+finally { try { Directory.Delete(pixelTownScratch, true); } catch { } }
+
+// The CI integration mode downloads and installs only the explicitly-reviewed
+// MIT-licensed official Aseprite examples into the ephemeral GitHub runner.
+if (args.Contains("--library-integration"))
+{
+    var revision = await WorkshopLibrary.LatestToolRevision(CancellationToken.None);
+    foreach (var item in WorkshopLibrary.Tools)
+    {
+        await WorkshopLibrary.InstallTool(item, revision, Console.WriteLine,
+            CancellationToken.None);
+        if (!WorkshopLibrary.Installed(item) ||
+            WorkshopLibrary.Revision(item) != revision)
+            throw new Exception("Managed script wasn't installed: " + item.Name);
+        WorkshopLibrary.UninstallTool(item, Console.WriteLine);
+        Console.WriteLine("PASS: upstream MIT script direct install/uninstall: " + item.Name);
+    }
+}

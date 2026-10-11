@@ -23,6 +23,11 @@ jobs:
         run: dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release
       - name: Validate real curated theme archives
         run: dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --theme-integration
+      - name: Test curated script installer on Windows
+        shell: pwsh
+        run: |
+          dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --library-integration
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Restore WPF app
         run: dotnet restore src/AsepriteManager/AsepriteManager.csproj
       - name: Build WPF app

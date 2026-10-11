@@ -176,6 +176,22 @@
                     </StackPanel>
                 </Grid>
 
+                <Border Background="#1C2945" CornerRadius="12" BorderBrush="#53628A"
+                        BorderThickness="1" Padding="15" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="215"/></Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBlock Text="CREATOR'S LIBRARY" FontWeight="Bold" FontSize="13"
+                                       Foreground="#C2B2FF"/>
+                            <TextBlock Text="Curated tools, tile helpers and PixelTown palette imports."
+                                       TextWrapping="Wrap" Foreground="#B8C5DC" Margin="0,5,0,0"/>
+                        </StackPanel>
+                        <Button x:Name="LibraryButton" Content="Open resource library"
+                                Grid.Column="1" Background="#6952BB" Click="OpenLibrary_Click"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
                 <Grid Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
