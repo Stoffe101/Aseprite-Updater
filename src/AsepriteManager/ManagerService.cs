@@ -7,7 +7,6 @@ using System.Text.RegularExpressions;
 
 namespace AsepriteManager;
 
-public sealed record ReleaseInfo(string Tag, string Version);
 public sealed record WorkStatus(int Percent, string Stage, string Detail);
 public sealed record DependencyReport(string? Git, string? CMake, string? Ninja, string? VsDevCmd)
 {
@@ -81,29 +80,25 @@ public sealed class ManagerService
         Logged?.Invoke(line);
     }
 
-    public async Task<ReleaseInfo> GetLatestAsync(CancellationToken ct = default)
+    private readonly ReleaseCatalog _catalog = new();
+
+    public async Task<IReadOnlyList<ReleaseInfo>> GetReleasesAsync(CancellationToken ct = default)
     {
-        using var response = await Client.GetAsync("https://api.github.com/repos/aseprite/aseprite/releases/latest", ct);
-        response.EnsureSuccessStatusCode();
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-        var root = json.RootElement;
-        if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
-            throw new InvalidDataException("Expected a stable release from GitHub.");
-        var tag = root.GetProperty("tag_name").GetString() ?? "";
-        if (!Regex.IsMatch(tag, @"^v\d+\.\d+\.\d+(?:\.\d+)?$"))
-            throw new InvalidDataException("GitHub returned an unexpected stable release tag.");
-        Log($"Latest stable GitHub release: {tag}");
-        return new ReleaseInfo(tag, tag.TrimStart('v'));
+        var releases = await _catalog.GetPublishedReleasesAsync(ct);
+        Log($"Found {releases.Count} published Aseprite GitHub releases.");
+        return releases;
     }
 
     public DependencyReport ScanDependencies()
     {
         RefreshEnvironmentPath();
+        var git = FindExe("git.exe", @"C:\Program Files\Git\cmd\git.exe");
+        if (git != null && GetGitBash(git) == null) git = null;
         return new DependencyReport(
-            FindExe("git.exe", @"C:\Program Files\Git\cmd\git.exe"),
+            git,
             FindExe("cmake.exe", @"C:\Program Files\CMake\bin\cmake.exe"),
             FindExe("ninja.exe"),
-            GetVsDevCmd());
+            HasWindowsSdk() ? GetVsDevCmd() : null);
     }
 
     public async Task<string?> ReadInstalledVersionAsync(string installDir, CancellationToken ct = default)
@@ -112,7 +107,9 @@ public sealed class ManagerService
         if (!File.Exists(exe)) return null;
         try
         {
-            var result = await RunAsync(exe, new[] { "--version" }, installDir, ct, logOutput: false);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(15));
+            var result = await RunAsync(exe, new[] { "--version" }, installDir, timeout.Token, logOutput: false);
             return VersionOrder.Parse(result);
         }
         catch (Exception ex)
@@ -167,31 +164,26 @@ public sealed class ManagerService
     public async Task InstallOrUpdateAsync(string requestedDir, ReleaseInfo release, IProgress<WorkStatus> progress, CancellationToken ct)
     {
         var installDir = Path.GetFullPath(requestedDir.Trim());
-        if (Path.GetPathRoot(installDir)?.TrimEnd('\\') == installDir.TrimEnd('\\'))
-            throw new InvalidOperationException("Choose an application folder, not a drive root.");
+        InstallSafety.ValidateDestination(installDir);
         if (Process.GetProcessesByName("aseprite").Length > 0)
             throw new InvalidOperationException("Close Aseprite before installing or updating.");
-        if (Directory.Exists(installDir) && !File.Exists(Path.Combine(installDir, "aseprite.exe")) &&
-            Directory.EnumerateFileSystemEntries(installDir).Any())
-            throw new InvalidOperationException("Selected destination is not empty and doesn't contain aseprite.exe.");
-
         var oldVersion = await ReadInstalledVersionAsync(installDir, ct);
-        if (oldVersion != null && VersionOrder.Compare(oldVersion, release.Version) >= 0)
-            throw new InvalidOperationException($"Already up to date ({oldVersion}).");
+        if (oldVersion != null && VersionOrder.Compare(oldVersion, release.Version) == 0)
+            throw new InvalidOperationException($"Selected version is already installed ({oldVersion}).");
+        if (File.Exists(Path.Combine(installDir, "aseprite.exe")) && oldVersion == null)
+            throw new InvalidOperationException("The existing Aseprite version could not be identified. No files were changed.");
 
         var deps = ScanDependencies();
         if (!deps.Complete)
             throw new InvalidOperationException("Build prerequisites are missing. Click 'Install missing tools' first.");
-        var gitBash = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(deps.Git!)!, "..", "bin", "bash.exe"));
-        if (!File.Exists(gitBash))
-            throw new FileNotFoundException("Git Bash was not found alongside Git for Windows.", gitBash);
+        var gitBash = GetGitBash(deps.Git!) ??
+            throw new FileNotFoundException("Git Bash is required (install Git for Windows).");
 
         // Work remains isolated until compilation and version verification both succeed.
         Directory.CreateDirectory(DataRoot);
         var session = Path.Combine(DataRoot, "work", Guid.NewGuid().ToString("N"));
         var source = Path.Combine(session, "source");
         var stage = Path.Combine(Path.GetDirectoryName(installDir)!, ".aseprite-staging-" + Guid.NewGuid().ToString("N"));
-        string? backup = null;
         bool swapped = false;
         Directory.CreateDirectory(session);
         try
@@ -232,41 +224,29 @@ public sealed class ManagerService
             progress.Report(new WorkStatus(80, "Staging", "Preparing the verified build without touching the current installation..."));
             CopyDirectory(built, stage);
             if (Directory.Exists(installDir))
-            {
-                CopyMissing(Path.Combine(installDir, "data", "extensions"), Path.Combine(stage, "data", "extensions"));
-                CopyMissing(Path.Combine(installDir, "data", "themes"), Path.Combine(stage, "data", "themes"));
-            }
+                InstallSafety.PreserveUserContent(installDir, stage, Log);
             var marker = JsonSerializer.Serialize(new { version = release.Version, release = release.Tag,
                 installedAt = DateTimeOffset.UtcNow }, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(Path.Combine(stage, "aseprite-manager.json"), marker, ct);
 
-            // Cancellation is checked BEFORE the swap; no cancellation mid-transaction.
+            // Cancellation is checked BEFORE the swap, never during the rename transaction.
             ct.ThrowIfCancellationRequested();
             if (Process.GetProcessesByName("aseprite").Length > 0)
                 throw new InvalidOperationException("Aseprite was started during the build. Close it and retry.");
-            progress.Report(new WorkStatus(92, "Installing", "Swapping the verified build into place..."));
-            if (Directory.Exists(installDir))
+            progress.Report(new WorkStatus(92, "Installing", "Swapping the verified build while retaining the previous version..."));
+            InstallSafety.SwapVerifiedInstallation(stage, installDir, () =>
             {
-                backup = Path.Combine(Path.GetDirectoryName(installDir)!, 
-                    Path.GetFileName(installDir) + ".backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
-                Directory.Move(installDir, backup);
-            }
-            try
-            {
-                Directory.Move(stage, installDir);
-                swapped = true;
-            }
-            catch
-            {
-                if (backup != null && Directory.Exists(backup) && !Directory.Exists(installDir))
-                    Directory.Move(backup, installDir);
-                throw;
-            }
-            progress.Report(new WorkStatus(100, "Complete", $"Aseprite {release.Version} installed successfully." +
-                (backup is null ? "" : " Previous version retained as a backup.")));
+                // Verify the executable and version again after the final rename.
+                var post = ReadInstalledVersionAsync(installDir, CancellationToken.None).GetAwaiter().GetResult();
+                return post != null && VersionOrder.Compare(post, release.Version) == 0;
+            }, Log);
+            swapped = true;
+            progress.Report(new WorkStatus(100, "Complete",
+                $"Aseprite {release.Version} installed. Previous application folder is retained as a full backup."));
+
             try { CreateStartMenuShortcut(installDir); }
             catch (Exception ex) { Log("Start Menu shortcut could not be created: " + ex.Message); }
-            Log($"SUCCESS: {release.Tag} => {installDir}; backup: {backup ?? "none"}");
+            Log($"SUCCESS: {release.Tag} => {installDir}. Any prior installation is retained as a full backup.");
         }
         catch (Exception ex)
         {
@@ -341,11 +321,17 @@ public sealed class ManagerService
         using var process = new Process { StartInfo = psi };
         if (!process.Start()) throw new InvalidOperationException("Could not start: " + executable);
         var output = new StringBuilder();
+        const int maxResultChars = 16000;
         async Task ReadAsync(StreamReader reader)
         {
             while (await reader.ReadLineAsync(ct) is { } line)
             {
-                lock (output) output.AppendLine(line);
+                lock (output)
+                {
+                    output.AppendLine(line);
+                    if (output.Length > maxResultChars * 2)
+                        output.Remove(0, output.Length - maxResultChars);
+                }
                 if (logOutput) Log(line);
             }
         }
@@ -362,7 +348,7 @@ public sealed class ManagerService
             throw;
         }
         if (process.ExitCode != 0)
-            throw new InvalidOperationException($"{Path.GetFileName(executable)} exited with code {process.ExitCode}. Consult the activity log.");
+            throw new InvalidOperationException($"{Path.GetFileName(executable)} exited with code {process.ExitCode}. Recent output: {output.ToString()[Math.Max(0, output.Length - 3000)..]}. See activity log.");
         return output.ToString();
     }
 
@@ -375,6 +361,30 @@ public sealed class ManagerService
             try { if (File.Exists(p)) return p; } catch { }
         }
         return null;
+    }
+
+    private static string? GetGitBash(string gitExe)
+    {
+        var gitCmdDir = Path.GetDirectoryName(gitExe)!;
+        var guesses = new[]
+        {
+            Path.GetFullPath(Path.Combine(gitCmdDir, "..", "bin", "bash.exe")),
+            Path.Combine(gitCmdDir, "bash.exe"),
+            @"C:\Program Files\Git\bin\bash.exe",
+            @"C:\Program Files (x86)\Git\bin\bash.exe"
+        };
+        return guesses.FirstOrDefault(File.Exists);
+    }
+
+    private static bool HasWindowsSdk()
+    {
+        var kitRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            @"Windows Kits\10\Include");
+        if (!Directory.Exists(kitRoot)) return false;
+        return Directory.EnumerateDirectories(kitRoot).Any(dir =>
+            Directory.Exists(Path.Combine(dir, "um")) &&
+            Directory.Exists(Path.Combine(dir, "ucrt")));
     }
 
     private static string? GetVsDevCmd()
