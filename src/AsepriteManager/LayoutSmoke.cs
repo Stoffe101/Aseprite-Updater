@@ -74,12 +74,16 @@ public static class LayoutSmoke
                 root.Measure(new Size(width, height));
                 root.Arrange(new Rect(0, 0, width, height));
                 root.UpdateLayout();
-                foreach (var control in new FrameworkElement[]
+                var visibleControls = pane.Label switch
                 {
-                    center.CheckAllButton, center.CreateBackupButton,
-                    center.SaveProfileButton, center.SavedProfiles,
-                    center.UpdateSummary, center.HubStatus
-                })
+                    "updates" => new FrameworkElement[]
+                    { center.CheckAllButton, center.UpdateSummary, center.HubStatus },
+                    "recovery" => new FrameworkElement[]
+                    { center.CreateBackupButton, center.RecoveryDetails, center.HubStatus },
+                    _ => new FrameworkElement[]
+                    { center.SaveProfileButton, center.SavedProfiles, center.HubStatus }
+                };
+                foreach (var control in visibleControls)
                     if (control.ActualWidth < 20 || double.IsNaN(control.ActualWidth))
                         throw new InvalidOperationException($"Control Center layout failure: {control.Name}");
                 var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
