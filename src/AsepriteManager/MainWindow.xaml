@@ -320,6 +320,8 @@
                             <Button x:Name="UpdateThemesButton" Content="Update installed themes"
                                     Click="UpdateThemes_Click" Background="#393F6A"
                                     Margin="0,0,10,8"/>
+                            <Button x:Name="RemoveThemeButton" Content="Uninstall selected theme"
+                                    Click="RemoveTheme_Click" Margin="0,0,10,8"/>
                             <Button Content="Open themes folder" Click="OpenThemesFolder_Click"
                                     Margin="0,0,0,8"/>
                         </WrapPanel>
