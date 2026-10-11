@@ -550,6 +550,18 @@ public partial class MainWindow : Window
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Launch failed"); }
     }
 
+    private void OpenControlCenter_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+        new ControlCenterWindow(this, _manager, TargetPath) { Owner = this }.ShowDialog();
+    }
+
+    public void FocusAsepriteUpdates()
+    {
+        VersionPicker.BringIntoView();
+        if (!_busy) Check_Click(this, new RoutedEventArgs());
+    }
+
     private void OpenLibrary_Click(object sender, RoutedEventArgs e)
     {
         var window = new LibraryWindow(_manager) { Owner = this };
