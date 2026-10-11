@@ -209,65 +209,101 @@ public sealed class ManagerService
         if (File.Exists(Path.Combine(installDir, "aseprite.exe")) && oldVersion == null)
             throw new InvalidOperationException("The existing Aseprite version could not be identified. No files were changed.");
 
-        var deps = ScanDependencies();
-        if (!deps.Complete)
-            throw new InvalidOperationException("Build prerequisites are missing. Click 'Install missing tools' first.");
-        var gitBash = GetGitBash(deps.Git!) ??
-            throw new FileNotFoundException("Git Bash is required (install Git for Windows).");
-
-        // Work remains isolated until compilation and version verification both succeed.
-        Directory.CreateDirectory(DataRoot);
-        var session = Path.Combine(DataRoot, "work", Guid.NewGuid().ToString("N"));
-        var stage = Path.Combine(Path.GetDirectoryName(installDir)!, ".aseprite-staging-" + Guid.NewGuid().ToString("N"));
-        bool swapped = false;
-        Directory.CreateDirectory(session);
+        // One desktop Manager operation may touch the cache at a time, even
+        // across separate Windows processes. Never lock user projects.
+        using var cacheLease = BuildCacheLease.Acquire();
+        var stage = Path.Combine(Path.GetDirectoryName(installDir)!,
+            ".aseprite-staging-" + Guid.NewGuid().ToString("N"));
+        string? session = null;
         WindowsBuildDrive? drive = null;
+        SharedSkiaCache? skiaLink = null;
+        bool swapped = false;
         try
         {
-            // Aseprite's official build.sh (including older release tags) uses
-            // unquoted $pwd paths when creating .build/ and Skia directories.
-            // Present an isolated, space-free drive path to Git Bash. The real
-            // session remains under Manager's private app-data directory.
-            drive = WindowsBuildDrive.Mount(session);
-            var source = Path.Combine(drive.Root, "source");
-            Log($"Temporary build drive: {drive.Root} (source is isolated from the installed Aseprite).");
-            progress.Report(new WorkStatus(8, "Downloading", "Cloning the official release and its submodules..."));
-            await RunAsync(deps.Git!, new[] { "clone", "--recursive", "--depth", "1", "--branch", release.Tag,
-                "https://github.com/aseprite/aseprite.git", source }, session, ct);
-            if (!File.Exists(Path.Combine(source, ".gitmodules")))
-                throw new InvalidDataException("Git clone did not include the required source metadata.");
+            progress.Report(new WorkStatus(7, "Checking build cache",
+                "Looking for a previously verified local build of Aseprite " + release.Version + "..."));
+            var cacheHit = AsepriteBuildCache.TryStage(
+                release.Tag, release.Version, stage, Log);
+            if (cacheHit)
+            {
+                // An intact digest manifest isn't enough: the cached
+                // executable itself must still report the requested version.
+                var cachedVersion = await ReadInstalledVersionAsync(stage, ct, allowMarkerFallback: false);
+                if (cachedVersion == null ||
+                    VersionOrder.Compare(cachedVersion, release.Version) != 0)
+                {
+                    Log("Cached executable version did not match release; performing full rebuild.");
+                    TryDelete(stage);
+                    cacheHit = false;
+                }
+            }
+            if (!cacheHit)
+            {
+                var deps = ScanDependencies();
+                if (!deps.Complete)
+                    throw new InvalidOperationException("Build prerequisites are missing. Click 'Install missing tools' first.");
+                var gitBash = GetGitBash(deps.Git!) ??
+                    throw new FileNotFoundException("Git Bash is required (install Git for Windows).");
 
-            progress.Report(new WorkStatus(30, "Building", "Compiling Aseprite with the official --auto helper. This may take a while."));
-            // Do NOT invoke upstream build.cmd: it unconditionally pauses at the end.
-            // The batch must live in source, and cmd.exe must receive a *relative*
-            // name. Absolute quoted commands forwarded via ProcessStartInfo.ArgumentList
-            // fail when the parent path contains spaces (confirmed on Windows 11).
-            var extraDirs = new[] {
-                Path.GetDirectoryName(deps.Git!)!,
-                Path.GetDirectoryName(deps.CMake!)!,
-                Path.GetDirectoryName(deps.Ninja!)!
-            };
-            WindowsBatchLauncher.WriteAsepriteWrapper(source, deps.VsDevCmd!, gitBash, extraDirs);
-            Log("Starting Aseprite's official build helper using a relative Windows batch command.");
-            await RunAsync("cmd.exe", WindowsBatchLauncher.Arguments(), source, ct);
+                session = Path.Combine(DataRoot, "work", Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(session);
+                // Old Aseprite release tags contain unquoted $pwd in build.sh.
+                // Keep the command's effective source path short and space free.
+                drive = WindowsBuildDrive.Mount(session);
+                var source = Path.Combine(drive.Root, "source");
+                Log($"Temporary build drive: {drive.Root}.");
+                progress.Report(new WorkStatus(14, "Downloading",
+                    "Cloning the official Aseprite source tag and submodules..."));
+                await RunAsync(deps.Git!, new[] { "clone", "--recursive", "--depth", "1",
+                    "--branch", release.Tag, "https://github.com/aseprite/aseprite.git",
+                    source }, session, ct);
+                if (!File.Exists(Path.Combine(source, ".gitmodules")))
+                    throw new InvalidDataException("Git clone did not include source metadata.");
 
-            var built = Path.Combine(source, "build", "bin");
-            var newExe = Path.Combine(built, "aseprite.exe");
-            if (!File.Exists(newExe))
-                throw new FileNotFoundException("The build finished without build/bin/aseprite.exe. Check the log.", newExe);
-            progress.Report(new WorkStatus(72, "Verifying", "Checking the newly compiled Aseprite version..."));
-            var compiledVersion = await ReadInstalledVersionAsync(built, ct);
-            if (compiledVersion is null || VersionOrder.Compare(compiledVersion, release.Version) != 0)
-                throw new InvalidDataException($"Compiled version '{compiledVersion ?? "unknown"}' does not match release {release.Version}.");
+                skiaLink = SharedSkiaCache.TryAttach(source, Log);
+                var performance = BuildPerformance.Read();
+                var sccache = performance.UseCompilerCache ? BuildPerformance.FindCompilerCache() : null;
+                Log($"Ninja parallel jobs: {BuildPerformance.EffectiveJobs(performance)}. " +
+                    (sccache == null ? "sccache unavailable/disabled; normal MSVC compilation." :
+                        "sccache enabled: " + sccache));
+                progress.Report(new WorkStatus(30, "Building",
+                    "Running Aseprite's official source build. Future versions may use cached dependencies and compiler objects."));
+                var extraDirs = new[] {
+                    Path.GetDirectoryName(deps.Git!)!,
+                    Path.GetDirectoryName(deps.CMake!)!,
+                    Path.GetDirectoryName(deps.Ninja!)!
+                };
+                WindowsBatchLauncher.WriteAsepriteWrapper(
+                    source, deps.VsDevCmd!, gitBash, extraDirs, performance, sccache);
+                await RunAsync("cmd.exe", WindowsBatchLauncher.Arguments(), source, ct);
 
-            ct.ThrowIfCancellationRequested();
-            progress.Report(new WorkStatus(80, "Staging", "Preparing the verified build without touching the current installation..."));
-            CopyDirectory(built, stage);
-            // Source-built executables may not embed a usable Windows icon.
-            // Preserve the upstream-supplied real Aseprite icon alongside it.
-            var upstreamIcon = Path.Combine(source, "data", "icons", "ase.ico");
-            if (File.Exists(upstreamIcon))
-                File.Copy(upstreamIcon, Path.Combine(stage, "aseprite.ico"), overwrite: true);
+                var built = Path.Combine(source, "build", "bin");
+                var newExe = Path.Combine(built, "aseprite.exe");
+                if (!File.Exists(newExe))
+                    throw new FileNotFoundException(
+                        "Build finished without build/bin/aseprite.exe; check the activity log.", newExe);
+                progress.Report(new WorkStatus(72, "Verifying",
+                    "Checking the newly compiled version before it is eligible for caching..."));
+                var compiledVersion = await ReadInstalledVersionAsync(built, ct,
+                    allowMarkerFallback: false);
+                if (compiledVersion is null ||
+                    VersionOrder.Compare(compiledVersion, release.Version) != 0)
+                    throw new InvalidDataException(
+                        $"Compiled version '{compiledVersion ?? "unknown"}' does not match release {release.Version}.");
+
+                ct.ThrowIfCancellationRequested();
+                CopyDirectory(built, stage);
+                var upstreamIcon = Path.Combine(source, "data", "icons", "ase.ico");
+                if (File.Exists(upstreamIcon))
+                    File.Copy(upstreamIcon, Path.Combine(stage, "aseprite.ico"), overwrite: true);
+
+                // Cache ONLY pristine upstream build output, before importing
+                // any themes, scripts or user-created files from old installs.
+                AsepriteBuildCache.Store(release.Tag, release.Version, stage, Log);
+            }
+            progress.Report(new WorkStatus(80, "Staging",
+                cacheHit ? "Restoring a verified local build; protecting your existing installation..." :
+                    "Preparing the new verified source build; preserving your artwork and settings..."));
             if (Directory.Exists(installDir))
                 InstallSafety.PreserveUserContent(installDir, stage, Log);
             var marker = JsonSerializer.Serialize(new { version = release.Version, release = release.Tag,
@@ -301,14 +337,19 @@ public sealed class ManagerService
         }
         finally
         {
-            // Release the SUBST mapping before deleting its physical directory.
-            // A failed build must not touch the existing installed version.
+            // Remove NTFS junction without following it, then release SUBST.
+            // Downloaded shared Skia contents must survive session cleanup.
+            if (skiaLink != null)
+            {
+                try { skiaLink.Dispose(); }
+                catch (Exception ex) { Log("SKIA CACHE LINK CLEANUP WARNING: " + ex.Message); }
+            }
             if (drive != null)
             {
                 try { drive.Dispose(); }
-                catch (Exception cleanupEx) { Log("BUILD DRIVE CLEANUP WARNING: " + cleanupEx.Message); }
+                catch (Exception ex) { Log("BUILD DRIVE CLEANUP WARNING: " + ex.Message); }
             }
-            TryDelete(session);
+            if (session != null) TryDelete(session);
             if (!swapped) TryDelete(stage);
         }
     }
