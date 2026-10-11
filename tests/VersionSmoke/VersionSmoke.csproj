@@ -11,6 +11,9 @@
     <Compile Include="../../src/AsepriteManager/ReleaseCatalog.cs" Link="ReleaseCatalog.cs" />
     <Compile Include="../../src/AsepriteManager/WindowsBatchLauncher.cs" Link="WindowsBatchLauncher.cs" />
     <Compile Include="../../src/AsepriteManager/WindowsBuildDrive.cs" Link="WindowsBuildDrive.cs" />
+    <Compile Include="../../src/AsepriteManager/AsepriteBuildCache.cs" Link="AsepriteBuildCache.cs" />
+    <Compile Include="../../src/AsepriteManager/SharedSkiaCache.cs" Link="SharedSkiaCache.cs" />
+    <Compile Include="../../src/AsepriteManager/BuildPerformance.cs" Link="BuildPerformance.cs" />
     <Compile Include="../../src/AsepriteManager/ThemeManager.cs" Link="ThemeManager.cs" />
     <Compile Include="../../src/AsepriteManager/WorkshopLibrary.cs" Link="WorkshopLibrary.cs" />
     <Compile Include="../../src/AsepriteManager/GodotWizardManager.cs" Link="GodotWizardManager.cs" />
