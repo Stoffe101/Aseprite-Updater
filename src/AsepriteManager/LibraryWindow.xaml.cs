@@ -244,8 +244,8 @@ public partial class LibraryWindow : Window
             }
             try
             {
-                WorkshopLibrary.InstallPalette("pixeltown-prototype",
-                    "PixelTown Prototype Colors (unapproved)", palette, _service.Log);
+                WorkshopLibrary.InstallPalette("pixeltown-core",
+                    "PixelTown Core Colors (draft)", palette, _service.Log);
                 PaletteStatus.Text = "PixelTown draft colors installed from the local project.";
             }
             catch (Exception ex)
@@ -268,8 +268,8 @@ public partial class LibraryWindow : Window
         try
         {
             var gpl = WorkshopLibrary.ExtractPixelTownPalette(dialog.FolderName);
-            WorkshopLibrary.InstallPalette("pixeltown-prototype",
-                "PixelTown Prototype Colors (unapproved)", gpl, _service.Log);
+            WorkshopLibrary.InstallPalette("pixeltown-core",
+                "PixelTown Core Colors (draft)", gpl, _service.Log);
             PaletteStatus.Text = "PixelTown prototype palette installed from the local source. " +
                 "Restart Aseprite and select it from the palette presets.";
             SetStatus("PixelTown palette created without modifying the Godot project.");
@@ -278,6 +278,26 @@ public partial class LibraryWindow : Window
         {
             PaletteStatus.Text = "Palette extraction failed: " + ex.Message;
             _service.Log("LIBRARY PALETTE ERROR: " + ex);
+        }
+    }
+
+    private void ExtractFullPalette_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog { Title = "Select local PixelTown Godot project" };
+        if (dialog.ShowDialog(this) != true) return;
+        try
+        {
+            var gpl = WorkshopLibrary.ExtractPixelTownPalette(dialog.FolderName, fullDiagnostic: true);
+            WorkshopLibrary.InstallPalette("pixeltown-full-draft",
+                "PixelTown Full Draft Diagnostics", gpl, _service.Log);
+            PaletteStatus.Text = "Full source color inventory installed for diagnostics. " +
+                "Prefer the named core palette for new artwork; neither is final.";
+            SetStatus("Full prototype color reference imported. Restart Aseprite to use it.");
+        }
+        catch (Exception ex)
+        {
+            PaletteStatus.Text = "Full palette import failed: " + ex.Message;
+            _service.Log("LIBRARY FULL PALETTE ERROR: " + ex);
         }
     }
 
