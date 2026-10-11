@@ -544,3 +544,24 @@ try
     Console.WriteLine("PASS: safe portable project profiles, no unknown resource identifiers.");
 }
 finally { try { Directory.Delete(profileScratch, true); } catch { } }
+
+
+// Persistent local favorites never install executable code or allow unlisted IDs.
+if (!LibraryFavorites.IsAllowed("tool:glass-floor") ||
+    !LibraryFavorites.IsAllowed("palette:db32") ||
+    LibraryFavorites.IsAllowed("tool:unknown-resource"))
+    throw new Exception("Library favorites allowlist is incorrect.");
+var initiallyLiked = LibraryFavorites.Read().Contains("tool:glass-floor");
+var newLiked = LibraryFavorites.Toggle("tool:glass-floor");
+if (newLiked == initiallyLiked)
+    throw new Exception("Favorite toggle did not flip its value.");
+LibraryFavorites.Toggle("tool:glass-floor");
+if (LibraryFavorites.Read().Contains("tool:glass-floor") != initiallyLiked)
+    throw new Exception("Favorite preference could not be restored.");
+try
+{
+    LibraryFavorites.Toggle("tool:unreviewed-code");
+    throw new Exception("Unknown Lua favorites must be rejected.");
+}
+catch (InvalidDataException) { }
+Console.WriteLine("PASS: safe favorites persistence and resource allowlist.");
