@@ -213,7 +213,8 @@ public partial class MainWindow : Window
         {
             StatusTitle.Text = current > 0 ? "Older version selected" :
                 _installedVersion is null ? "Ready for first installation" : "Version change available";
-            var cached = AsepriteBuildCache.HasBuild(_release.Tag, _release.Version);
+            var cached = AsepriteBuildCache.HasBuild(_release.Tag, _release.Version) ||
+                AsepriteBuildCache.HasPreviousInstallBackup(TargetPath, _release.Tag, _release.Version);
             StatusDetail.Text = cached
                 ? $"A local Aseprite {_release.Version} build is cached. Manager will verify its files before switching; the current installation will be backed up."
                 : current > 0
