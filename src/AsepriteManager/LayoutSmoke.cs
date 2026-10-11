@@ -56,6 +56,26 @@ public static class LayoutSmoke
             encoder.Save(stream);
             Console.WriteLine($"PASS: WPF layout {width}x{height}");
         }
+        foreach (var (width, height) in new[] { (650, 560), (810, 715) })
+        {
+            var perf = new BuildCacheWindow(new ManagerService());
+            var root = (FrameworkElement)perf.Content;
+            root.Measure(new Size(width, height));
+            root.Arrange(new Rect(0, 0, width, height));
+            root.UpdateLayout();
+            if (perf.CacheSummary.ActualWidth < 50 ||
+                perf.ParallelJobs.ActualWidth < 100 ||
+                perf.UseSccache.ActualWidth < 100)
+                throw new InvalidOperationException("Build Performance settings are clipped.");
+            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(root);
+            var png = new PngBitmapEncoder();
+            png.Frames.Add(BitmapFrame.Create(bitmap));
+            using var stream = File.Create(Path.Combine("ui-snapshots",
+                $"build-performance-{width}x{height}.png"));
+            png.Save(stream);
+            Console.WriteLine($"PASS: Build Performance window {width}x{height}");
+        }
         foreach (var (width, height) in new[] { (780, 580), (940, 760) })
         {
             var main = new MainWindow();
