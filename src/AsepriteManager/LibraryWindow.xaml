@@ -158,6 +158,8 @@
                         <WrapPanel>
                             <Button Content="Extract PixelTown palette" Click="ExtractPalette_Click"
                                     Background="#6557B1" MinWidth="220"/>
+                            <Button Content="Extract full draft (206)" Click="ExtractFullPalette_Click"
+                                    MinWidth="184"/>
                             <Button Content="Import local GPL palette" Click="ImportPalette_Click"
                                     MinWidth="204"/>
                             <Button Content="Open Aseprite palette folder" Click="OpenExtensions_Click"
