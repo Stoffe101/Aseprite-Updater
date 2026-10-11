@@ -85,6 +85,15 @@
                 <TextBlock Text="Curated for PixelTown's square-grid terrain, small characters, equipment layers and Godot asset workflow."
                            Foreground="#B5C1DA" TextWrapping="Wrap" Margin="0,0,0,20"/>
 
+                <WrapPanel Margin="0,0,0,13">
+                    <Button Content="Tools" Tag="tools" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                    <Button Content="Palettes" Tag="palettes" Click="Navigate_Click" MinWidth="98" Height="36"/>
+                    <Button Content="Extensions" Tag="extensions" Click="Navigate_Click" MinWidth="108" Height="36"/>
+                    <Button Content="Godot" Tag="godot" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                    <Button Content="Brushes" Tag="brushes" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                    <Button Content="Backups" Tag="backup" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                </WrapPanel>
+
                 <Border Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
                         CornerRadius="12" Padding="17" Margin="0,0,0,17">
                     <Grid>
@@ -101,7 +110,7 @@
                     </Grid>
                 </Border>
 
-                <Grid Margin="0,0,0,17">
+                <Grid x:Name="ToolSection" Margin="0,0,0,17">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="310"/>
                         <ColumnDefinition Width="14"/>
@@ -112,6 +121,7 @@
                         <StackPanel>
                             <TextBlock Text="AUDITED ASEPRITE TOOLS" FontSize="12" FontWeight="Bold"
                                        Foreground="#B0BEE0" Margin="0,0,0,10"/>
+                            <TextBlock Text="Search tools" Foreground="#889CB9" FontSize="12" Margin="0,0,0,4"/>
                             <TextBox x:Name="ToolSearch" Height="40" VerticalContentAlignment="Center"
                                      TextChanged="Search_Changed" ToolTip="Search by name, category or use case"/>
                             <ListBox x:Name="ToolList" Margin="0,10,0,0" Height="260"
@@ -147,7 +157,7 @@
                     </Border>
                 </Grid>
 
-                <Border Background="{StaticResource Panel}" BorderThickness="1"
+                <Border x:Name="PaletteSection" Background="{StaticResource Panel}" BorderThickness="1"
                         BorderBrush="#36445E" Padding="19" CornerRadius="12" Margin="0,0,0,16">
                     <StackPanel>
                         <TextBlock Text="PALETTE WORKSHOP" FontWeight="Bold" Foreground="#AE9CFF" FontSize="12"/>
@@ -167,6 +177,142 @@
                         </WrapPanel>
                         <TextBlock x:Name="PaletteStatus" Foreground="#B7C5E1" TextWrapping="Wrap"
                                    Text="PixelTown's current art is a prototype; extracted colors are not an approved final palette."/>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="GallerySection" Background="{StaticResource Panel}" BorderBrush="#36445E"
+                        BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
+                    <StackPanel>
+                        <TextBlock Text="PALETTE DISCOVERY" Foreground="#C2B2FF" FontSize="12" FontWeight="Bold"/>
+                        <TextBlock Text="Explore color palettes without leaving Manager"
+                                   FontSize="20" FontWeight="Bold" Margin="0,7,0,5" TextWrapping="Wrap"/>
+                        <TextBlock Text="13 curated palettes available in Aseprite's upstream collection. Many are already bundled in Aseprite; these optional managed copies make discovering and comparing colors easier."
+                                   TextWrapping="Wrap" Foreground="#B6C5DB" Margin="0,0,0,14"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="260"/>
+                                <ColumnDefinition Width="15"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Search palettes" Foreground="#889CB9" FontSize="12" Margin="0,0,0,4"/>
+                                <TextBox x:Name="PaletteSearch" Height="40" VerticalContentAlignment="Center"
+                                         TextChanged="PaletteSearch_Changed" ToolTip="Search name, use case or creator"/>
+                                <ListBox x:Name="GalleryList" Height="230" Margin="0,8,0,0"
+                                         SelectionChanged="GalleryList_SelectionChanged" DisplayMemberPath="Name"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock x:Name="GalleryTitle" Text="Select a palette"
+                                           FontWeight="Bold" FontSize="19" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="GalleryDescription" Foreground="#BDC9DD"
+                                           TextWrapping="Wrap" Margin="0,6,0,9"/>
+                                <TextBlock x:Name="GalleryStatus" Foreground="#B7A8F0"
+                                           TextWrapping="Wrap" Margin="0,0,0,9"/>
+                                <WrapPanel x:Name="PaletteSwatches" MinHeight="50" Margin="0,0,0,9"/>
+                                <WrapPanel>
+                                    <Button x:Name="PreviewPaletteButton" Content="Preview colors"
+                                            Click="PreviewPalette_Click"/>
+                                    <Button x:Name="InstallPaletteButton" Content="Install preset"
+                                            Click="InstallGalleryPalette_Click" Background="#6752B4"/>
+                                    <Button x:Name="RemoveGalleryPaletteButton" Content="Uninstall copy"
+                                            Click="RemoveGalleryPalette_Click"/>
+                                    <Button x:Name="UpdateGalleryPalettesButton" Content="Update managed"
+                                            Click="UpdateGalleryPalettes_Click"/>
+                                    <Button Content="Source" Click="OpenPaletteSource_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="ExtensionSection" Background="{StaticResource Panel}" BorderBrush="#36445E"
+                        BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
+                    <StackPanel>
+                        <TextBlock Text="COMMUNITY EXTENSION" Foreground="#C2B2FF"
+                                   FontWeight="Bold" FontSize="12"/>
+                        <TextBlock Text="Tile Index Overlay" FontSize="20" FontWeight="Bold"
+                                   Margin="0,7,0,5"/>
+                        <TextBlock Text="Add tile numbers on a temporary layer in Aseprite. Particularly useful for indexing PixelTown's square-grid sheets. MIT-licensed source by Pixeltica. This extension runs Lua and registers a keyboard shortcut."
+                                   Foreground="#B7C6DD" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="ExtensionStatus" Foreground="#B7A8F0" Margin="0,0,0,11"
+                                   TextWrapping="Wrap" Text="Not checked"/>
+                        <WrapPanel>
+                            <Button x:Name="InstallOverlayButton" Content="Install / update overlay"
+                                    Click="InstallOverlay_Click" Background="#6652AA" MinWidth="200"/>
+                            <Button x:Name="RemoveOverlayButton" Content="Uninstall overlay"
+                                    Click="RemoveOverlay_Click"/>
+                            <Button Content="View extension source" Click="ViewOverlay_Click"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="GodotSection" Background="{StaticResource Panel}" BorderBrush="#36445E"
+                        BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
+                    <StackPanel>
+                        <TextBlock Text="GODOT 4  /  PIXELTOWN WORKFLOW"
+                                   Foreground="#C2B2FF" FontWeight="Bold" FontSize="12"/>
+                        <TextBlock Text="Aseprite Wizard for Godot" FontSize="20"
+                                   FontWeight="Bold" Margin="0,7,0,5"/>
+                        <TextBlock Text="Import .aseprite animations, frames, layers and tilemap textures into Godot. Opt-in per project. Manager installs the MIT-licensed Godot 4 addon only; it never edits project.godot, enables the plugin, imports your sprites or modifies scenes."
+                                   Foreground="#B7C6DD" TextWrapping="Wrap" Margin="0,0,0,13"/>
+                        <Grid Margin="0,0,0,9">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="152"/></Grid.ColumnDefinitions>
+                            <TextBox x:Name="GodotProjectPath" Grid.Column="0" Height="42"
+                                     VerticalContentAlignment="Center" ToolTip="Local Godot project containing project.godot"
+                                     TextChanged="GodotProjectPath_Changed"/>
+                            <Button x:Name="BrowseGodotButton" Grid.Column="2"
+                                    Content="Choose project" Click="BrowseGodot_Click"
+                                    Margin="0" Height="42"/>
+                        </Grid>
+                        <TextBlock x:Name="GodotStatus" Text="Select your local PixelTown project folder."
+                                   Foreground="#B7A8F0" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <WrapPanel>
+                            <Button x:Name="InstallWizardButton" Content="Install / update Wizard"
+                                    Click="InstallWizard_Click" Background="#6652AA" MinWidth="190"/>
+                            <Button x:Name="RemoveWizardButton" Content="Uninstall Wizard"
+                                    Click="RemoveWizard_Click"/>
+                            <Button x:Name="CheckWizardButton" Content="Check Wizard update"
+                                    Click="CheckWizard_Click"/>
+                            <Button Content="Wizard source" Click="ViewWizard_Click"/>
+                        </WrapPanel>
+                        <TextBlock Text="Compatibility note: Godot 4 branch, with PixelTown's provisional Godot 4.7.2 not fully validated yet. After installing, enable it manually via Godot → Project → Project Settings → Plugins, then configure Aseprite's executable path."
+                                   FontSize="12" Foreground="#8FA6C7" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="BrushSection" Background="{StaticResource Panel}" BorderBrush="#36445E"
+                        BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
+                    <StackPanel>
+                        <TextBlock Text="BRUSH SOURCE VAULT" Foreground="#C2B2FF"
+                                   FontWeight="Bold" FontSize="12"/>
+                        <TextBlock Text="Save brush stamps without risking Aseprite settings"
+                                   FontSize="20" FontWeight="Bold" TextWrapping="Wrap" Margin="0,7,0,5"/>
+                        <TextBlock Text="Import small PNG brush patterns into a reusable library. Open a stamp in Aseprite, select the pixels, then use Ctrl+B to create a custom brush. Manager intentionally does not patch Aseprite's user.aseprite-brushes file."
+                                   Foreground="#B7C6DD" TextWrapping="Wrap" Margin="0,0,0,13"/>
+                        <WrapPanel>
+                            <Button Content="Import PNG brush stamp" Click="ImportBrush_Click"
+                                    Background="#6652AA" MinWidth="202"/>
+                            <Button Content="Open brush vault" Click="OpenBrushFolder_Click"/>
+                        </WrapPanel>
+                        <TextBlock x:Name="BrushStatus" Text="No changes to Aseprite's saved custom brushes."
+                                   Foreground="#B7A8F0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="BackupSection" Background="{StaticResource Panel}" BorderBrush="#36445E"
+                        BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
+                    <StackPanel>
+                        <TextBlock Text="PROFILE BACKUP" Foreground="#C2B2FF" FontSize="12"
+                                   FontWeight="Bold"/>
+                        <TextBlock Text="Save your complete Aseprite configuration"
+                                   FontSize="20" FontWeight="Bold" TextWrapping="Wrap" Margin="0,7,0,5"/>
+                        <TextBlock Text="Export a ZIP containing your settings, saved brushes, scripts, extensions and palettes. Aseprite must be closed. Your active profile is never edited. Restore is deliberately manual until a tested rollback workflow is available."
+                                   Foreground="#B7C6DD" TextWrapping="Wrap" Margin="0,0,0,13"/>
+                        <Button x:Name="BackupProfileButton" Content="Create profile backup ZIP"
+                                HorizontalAlignment="Left" Background="#6652AA"
+                                Click="BackupProfile_Click" MinWidth="226"/>
+                        <TextBlock x:Name="BackupStatus" Text="No backup has been created this session."
+                                   Foreground="#B7A8F0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
 

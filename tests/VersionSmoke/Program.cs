@@ -226,6 +226,16 @@ if (args.Contains("--theme-integration"))
         }
         finally { try { Directory.Delete(dir, recursive: true); } catch { } }
     }
+    // The Manager must uninstall only its own unmodified theme and keep a backup.
+    var themeToInstall = ThemeCatalog.Curated.First(t => t.Id == "cat-mocha");
+    var themeService = new ThemeManager(Console.WriteLine);
+    await themeService.InstallOrUpdateAsync(themeToInstall, CancellationToken.None);
+    if (!themeService.IsInstalled(themeToInstall))
+        throw new Exception("Real managed theme installation did not appear.");
+    themeService.RemoveTheme(themeToInstall);
+    if (themeService.IsInstalled(themeToInstall))
+        throw new Exception("Managed theme uninstall failed.");
+    Console.WriteLine("PASS: real Catppuccin theme installation and protected uninstall.");
 }
 
 
@@ -305,3 +315,155 @@ if (args.Contains("--library-integration"))
         Console.WriteLine("PASS: upstream MIT script direct install/uninstall: " + item.Name);
     }
 }
+
+
+// Godot integration safety: reject unexpected files and traversals. The
+// installed plugin must leave the user's project.godot unchanged.
+byte[] FakeWizardArchive(bool unsafePath = false)
+{
+    using var stream = new MemoryStream();
+    using (var zip = new System.IO.Compression.ZipArchive(stream,
+        System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+    {
+        void Put(string file, string text)
+        {
+            var e = zip.CreateEntry("godot-aseprite-wizard-fixture/addons/AsepriteWizard/" + file);
+            using var writer = new StreamWriter(e.Open());
+            writer.Write(text);
+        }
+        Put("plugin.cfg", "[plugin]\nname=\"Aseprite Wizard\"\n");
+        Put("plugin.gd", "@tool\nextends EditorPlugin\n");
+        Put("LICENSE", "MIT");
+        for (int i = 0; i < 9; ++i)
+            Put("test/file" + i + ".gd", "extends RefCounted\n");
+        if (unsafePath) Put("../evil.txt", "evil");
+    }
+    return stream.ToArray();
+}
+var godotSafeRoot = Path.Combine(Path.GetTempPath(), "WizardSafety-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(godotSafeRoot);
+try
+{
+    GodotWizardManager.ExtractWizardArchive(FakeWizardArchive(), godotSafeRoot);
+    if (!File.Exists(Path.Combine(godotSafeRoot, "plugin.gd")))
+        throw new Exception("Safe Godot plugin fixture was not extracted.");
+    var badRoot = Path.Combine(godotSafeRoot, "malicious");
+    Directory.CreateDirectory(badRoot);
+    try
+    {
+        GodotWizardManager.ExtractWizardArchive(FakeWizardArchive(true), badRoot);
+        throw new Exception("Traversal archive was accepted.");
+    }
+    catch (InvalidDataException) { }
+    Console.WriteLine("PASS: Godot addon archive identity and path validation.");
+}
+finally { try { Directory.Delete(godotSafeRoot, true); } catch { } }
+
+if (args.Contains("--godot-integration"))
+{
+    var godotFixtureProject = Path.Combine(Path.GetTempPath(), "Godot 4 Project " + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(godotFixtureProject);
+    var config = Path.Combine(godotFixtureProject, "project.godot");
+    var original = "config_version=5\n[application]\nconfig/name=\"CI Wizard Test\"\n";
+    File.WriteAllText(config, original);
+    try
+    {
+        await GodotWizardManager.InstallOrUpdateAsync(godotFixtureProject, Console.WriteLine, CancellationToken.None);
+        var state = GodotWizardManager.Inspect(godotFixtureProject);
+        if (!state.Installed || !state.Managed || state.Modified ||
+            !File.Exists(Path.Combine(state.PluginPath, "plugin.gd")) ||
+            File.ReadAllText(config) != original)
+            throw new Exception("Godot Wizard install changed project config or failed integrity.");
+        var pluginFile = Path.Combine(state.PluginPath, "plugin.gd");
+        var originalPluginText = File.ReadAllText(pluginFile);
+        File.AppendAllText(pluginFile, "\n# temporary CI customization\n");
+        if (!GodotWizardManager.Inspect(godotFixtureProject).Modified)
+            throw new Exception("Modified Godot addon was not detected.");
+        try
+        {
+            GodotWizardManager.Uninstall(godotFixtureProject, Console.WriteLine);
+            throw new Exception("The manager removed locally modified addon code.");
+        }
+        catch (InvalidOperationException) { }
+        File.WriteAllText(pluginFile, originalPluginText);
+        GodotWizardManager.Uninstall(godotFixtureProject, Console.WriteLine);
+        if (Directory.Exists(state.PluginPath) || File.ReadAllText(config) != original)
+            throw new Exception("Godot addon uninstall touched the project or retained plugin files.");
+        Console.WriteLine("PASS: real Godot 4 Wizard addon downloaded, installed and removed without changing project.godot.");
+    }
+    finally { try { Directory.Delete(godotFixtureProject, true); } catch { } }
+}
+if (args.Contains("--palette-integration"))
+{
+    foreach (var p in PaletteGallery.Presets)
+    {
+        var (_, gpl) = await PaletteGallery.DownloadAsync(p);
+        var colors = PaletteGallery.Colors(gpl);
+        if (colors.Count < 2 || colors.Count > 256)
+            throw new Exception("Invalid gallery palette: " + p.Name);
+        Console.WriteLine($"PASS: upstream palette {p.Name}, {colors.Count} RGB swatches.");
+    }
+}
+if (args.Contains("--overlay-integration"))
+{
+    await TileIndexOverlayManager.InstallAsync(Console.WriteLine, CancellationToken.None);
+    if (!TileIndexOverlayManager.Installed ||
+        !File.Exists(Path.Combine(TileIndexOverlayManager.Folder, "tile-index-overlay.lua")))
+        throw new Exception("Tile Index Overlay was not installed.");
+    TileIndexOverlayManager.Remove(Console.WriteLine);
+    if (TileIndexOverlayManager.Installed) throw new Exception("Tile Index Overlay removal failed.");
+    Console.WriteLine("PASS: curated Tile Index Overlay installed and removed.");
+}
+
+
+// Opt-in CI fixture: verify the *real Godot editor* can load the addon on the
+// pinned Godot 4.7.2 version. This does NOT modify PixelTown or user projects.
+if (args.Contains("--godot-editor-fixture"))
+{
+    var fixturePath = Path.Combine(Path.GetTempPath(), "AsepriteWizardGodotEditorCI");
+    if (Directory.Exists(fixturePath)) Directory.Delete(fixturePath, recursive: true);
+    Directory.CreateDirectory(fixturePath);
+    var config = "config_version=5\n" +
+        "[application]\nconfig/name=\"Aseprite Wizard CI Fixture\"\n" +
+        "[editor_plugins]\n" +
+        "enabled=PackedStringArray(\"res://addons/AsepriteWizard/plugin.cfg\")\n";
+    File.WriteAllText(Path.Combine(fixturePath, "project.godot"), config);
+    await GodotWizardManager.InstallOrUpdateAsync(fixturePath, Console.WriteLine,
+        CancellationToken.None);
+    if (File.ReadAllText(Path.Combine(fixturePath, "project.godot")) != config)
+        throw new Exception("Wizard altered the CI project config.");
+    Console.WriteLine("GODOT_CI_FIXTURE=" + fixturePath);
+}
+
+
+// Profile backups are exports only, never edits to the source folder.
+var profileFixture = Path.Combine(Path.GetTempPath(),
+    "Aseprite Profile Fixture-" + Guid.NewGuid().ToString("N"));
+var srcProfile = Path.Combine(profileFixture, "Aseprite");
+var archiveFile = Path.Combine(profileFixture, "profile.zip");
+try
+{
+    Directory.CreateDirectory(Path.Combine(srcProfile, "extensions", "test"));
+    File.WriteAllText(Path.Combine(srcProfile, "aseprite.ini"), "saved-preferences");
+    File.WriteAllText(Path.Combine(srcProfile, "user.aseprite-brushes"), "custom-brushes");
+    File.WriteAllText(Path.Combine(srcProfile, "extensions", "test", "theme.xml"), "custom-theme");
+    var count = ProfileBackupService.CreateBackup(srcProfile, archiveFile);
+    if (count != 3) throw new Exception("Profile backup missed files.");
+    using (var zip = System.IO.Compression.ZipFile.OpenRead(archiveFile))
+    {
+        if (!zip.Entries.Any(e => e.FullName == "user.aseprite-brushes") ||
+            !zip.Entries.Any(e => e.FullName == "extensions/test/theme.xml"))
+            throw new Exception("Backup did not preserve user brush settings or extensions.");
+    }
+    if (File.ReadAllText(Path.Combine(srcProfile, "aseprite.ini")) != "saved-preferences")
+        throw new Exception("Profile backup modified user preferences.");
+    try
+    {
+        ProfileBackupService.CreateBackup(srcProfile,
+            Path.Combine(srcProfile, "accidental-inside.zip"));
+        throw new Exception("Profile backup should reject output nested inside the source.");
+    }
+    catch (InvalidOperationException) { }
+    Console.WriteLine("PASS: complete read-only Aseprite profile backup and inside-folder rejection.");
+}
+finally { try { Directory.Delete(profileFixture, true); } catch { } }

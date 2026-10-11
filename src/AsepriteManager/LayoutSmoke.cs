@@ -69,7 +69,10 @@ public static class LayoutSmoke
             {
                 library.ToolList, library.ToolTitle,
                 library.InstallToolButton, library.StarterKitButton,
-                library.ToolDescription, library.PaletteStatus, library.LibraryStatus
+                library.ToolDescription, library.PaletteStatus, library.LibraryStatus,
+                library.GalleryList, library.InstallPaletteButton, library.PaletteSwatches,
+                library.InstallOverlayButton, library.GodotProjectPath,
+                library.InstallWizardButton, library.BrushStatus
             };
             foreach (var control in controls)
             {
@@ -86,6 +89,20 @@ public static class LayoutSmoke
                 Path.Combine("ui-snapshots", $"library-{width}x{height}.png"));
             encoder.Save(stream);
             Console.WriteLine($"PASS: Creator's Library layout {width}x{height}");
+            var scroller = ((System.Windows.Controls.Grid)root).Children
+                .OfType<System.Windows.Controls.ScrollViewer>().First();
+            foreach (var ratio in new[] { 0.35, 0.7, 1.0 })
+            {
+                scroller.ScrollToVerticalOffset(scroller.ScrollableHeight * ratio);
+                root.UpdateLayout();
+                var lowerBitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                lowerBitmap.Render(root);
+                var lowerEncoder = new PngBitmapEncoder();
+                lowerEncoder.Frames.Add(BitmapFrame.Create(lowerBitmap));
+                using var lowerStream = File.Create(Path.Combine("ui-snapshots",
+                    $"library-{width}x{height}-scroll-{(int)(ratio * 100)}.png"));
+                lowerEncoder.Save(lowerStream);
+            }
         }
     }
 }

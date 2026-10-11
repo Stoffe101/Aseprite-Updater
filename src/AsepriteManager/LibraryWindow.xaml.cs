@@ -20,6 +20,9 @@ public partial class LibraryWindow : Window
         ToolSearch.Text = "";
         ToolList.ItemsSource = WorkshopLibrary.Tools;
         ToolList.SelectedIndex = 0;
+        GalleryList.ItemsSource = PaletteGallery.Presets;
+        GalleryList.SelectedIndex = 0;
+        RefreshExtensionDetails();
         Closing += ClosingDuringInstall;
         RefreshToolDetails();
     }
@@ -37,6 +40,22 @@ public partial class LibraryWindow : Window
         _busy = value;
         ToolSearch.IsEnabled = !value;
         StarterKitButton.IsEnabled = !value;
+        BackupProfileButton.IsEnabled = !value;
+        GalleryList.IsEnabled = !value;
+        PaletteSearch.IsEnabled = !value;
+        InstallPaletteButton.IsEnabled = !value && GalleryList.SelectedItem != null;
+        RemoveGalleryPaletteButton.IsEnabled = !value &&
+            GalleryList.SelectedItem is PalettePreset palette && PaletteGallery.IsInstalled(palette);
+        UpdateGalleryPalettesButton.IsEnabled = !value &&
+            PaletteGallery.Presets.Any(PaletteGallery.IsInstalled);
+        PreviewPaletteButton.IsEnabled = !value && GalleryList.SelectedItem != null;
+        InstallOverlayButton.IsEnabled = !value;
+        RemoveOverlayButton.IsEnabled = !value && TileIndexOverlayManager.Installed;
+        BrowseGodotButton.IsEnabled = !value;
+        GodotProjectPath.IsEnabled = !value;
+        InstallWizardButton.IsEnabled = !value && !string.IsNullOrWhiteSpace(GodotProjectPath.Text);
+        RemoveWizardButton.IsEnabled = !value && !string.IsNullOrWhiteSpace(GodotProjectPath.Text);
+        CheckWizardButton.IsEnabled = !value && !string.IsNullOrWhiteSpace(GodotProjectPath.Text);
         ToolList.IsEnabled = !value;
         InstallToolButton.IsEnabled = !value && ToolList.SelectedItem != null;
         RemoveToolButton.IsEnabled = !value && ToolList.SelectedItem is LibraryTool tool &&
@@ -226,7 +245,7 @@ public partial class LibraryWindow : Window
         {
             SetStatus("Fetching vetted official Aseprite script revision...");
             var sha = await WorkshopLibrary.LatestToolRevision(CancellationToken.None);
-            foreach (var tool in WorkshopLibrary.Tools)
+            foreach (var tool in WorkshopLibrary.StarterTools)
             {
                 SetStatus("Installing " + tool.Name + "...");
                 try
@@ -344,4 +363,368 @@ public partial class LibraryWindow : Window
             ArgumentList = { folder }
         });
     }
+    private void Navigate_Click(object sender, RoutedEventArgs e)
+    {
+        var section = (sender as System.Windows.Controls.Button)?.Tag as string;
+        FrameworkElement? target = section switch
+        {
+            "tools" => ToolSection,
+            "palettes" => GallerySection,
+            "extensions" => ExtensionSection,
+            "godot" => GodotSection,
+            "brushes" => BrushSection,
+            "backup" => BackupSection,
+            _ => null
+        };
+        target?.BringIntoView();
+    }
+
+    private void PaletteSearch_Changed(object sender,
+        System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (GalleryList == null || !IsInitialized) return;
+        var term = PaletteSearch.Text.Trim();
+        GalleryList.ItemsSource = PaletteGallery.Presets.Where(p =>
+            term.Length == 0 || string.Join(" ", p.Name, p.Credit, p.Usage)
+                .Contains(term, StringComparison.OrdinalIgnoreCase)).ToArray();
+        GalleryList.SelectedIndex = GalleryList.Items.Count > 0 ? 0 : -1;
+    }
+    private void GalleryList_SelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e) => RefreshGalleryDetails();
+
+    private void RefreshGalleryDetails()
+    {
+        if (GalleryList?.SelectedItem is not PalettePreset preset)
+        {
+            if (GalleryTitle != null) GalleryTitle.Text = "No matching palettes";
+            if (PaletteSwatches != null) PaletteSwatches.Children.Clear();
+            return;
+        }
+        GalleryTitle.Text = preset.Name;
+        GalleryDescription.Text = $"{preset.Usage}\nCreator: {preset.Credit}";
+        GalleryStatus.Text = PaletteGallery.IsInstalled(preset) ?
+            "Managed copy installed. Existing Aseprite-bundled presets are unaffected." :
+            "Available to preview or install as an optional managed copy.";
+        PaletteSwatches.Children.Clear();
+        RemoveGalleryPaletteButton.IsEnabled = !_busy && PaletteGallery.IsInstalled(preset);
+        InstallPaletteButton.Content = PaletteGallery.IsInstalled(preset) ? "Reinstall / update" : "Install preset";
+    }
+    private async void PreviewPalette_Click(object sender, RoutedEventArgs e)
+    {
+        if (GalleryList.SelectedItem is not PalettePreset preset) return;
+        SetBusy(true);
+        try
+        {
+            GalleryStatus.Text = "Reading original colors from upstream Aseprite...";
+            var result = await PaletteGallery.DownloadAsync(preset);
+            var colors = PaletteGallery.Colors(result.Gpl);
+            PaletteSwatches.Children.Clear();
+            foreach (var (r, g, b) in colors)
+            {
+                var border = new System.Windows.Controls.Border
+                {
+                    Width = 22, Height = 22,
+                    Margin = new Thickness(0, 0, 4, 4),
+                    Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(r, g, b)),
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(20, 31, 49)),
+                    ToolTip = $"#{r:X2}{g:X2}{b:X2}"
+                };
+                PaletteSwatches.Children.Add(border);
+            }
+            GalleryStatus.Text = $"{colors.Count} colors. {preset.Credit}. " +
+                (PaletteGallery.IsInstalled(preset) ? "Managed copy installed." : "Not installed by Manager.");
+        }
+        catch (Exception ex) { GalleryStatus.Text = "Preview unavailable: " + ex.Message; }
+        finally { SetBusy(false); }
+    }
+    private async void InstallGalleryPalette_Click(object sender, RoutedEventArgs e)
+    {
+        if (GalleryList.SelectedItem is not PalettePreset preset) return;
+        if (MessageBox.Show(this,
+            $"Install a managed copy of {preset.Name}?\n\nCreator: {preset.Credit}\n" +
+            "Source: aseprite/aseprite on GitHub.\n\n" +
+            "Aseprite may already include this palette. This creates a separate preset " +
+            "and never modifies existing sprites. Existing customized managed files will be protected.",
+            "Install curated palette", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        SetBusy(true);
+        try
+        {
+            SetStatus("Installing palette " + preset.Name + "...");
+            await Task.Run(() => PaletteGallery.InstallAsync(preset, _service.Log,
+                CancellationToken.None));
+            GalleryStatus.Text = "Managed palette installed. Restart Aseprite and select it in palette presets.";
+            SetStatus(preset.Name + " installed.");
+        }
+        catch (Exception ex)
+        {
+            GalleryStatus.Text = "Palette install blocked: " + ex.Message;
+            _service.Log("PALETTE GALLERY ERROR: " + ex);
+        }
+        finally { SetBusy(false); }
+    }
+    private void RemoveGalleryPalette_Click(object sender, RoutedEventArgs e)
+    {
+        if (GalleryList.SelectedItem is not PalettePreset preset) return;
+        if (MessageBox.Show(this,
+            $"Uninstall your managed copy of {preset.Name}?\n\n" +
+            "Aseprite's built-in palettes will not be affected. " +
+            "Your managed copy will be backed up rather than permanently deleted.",
+            "Uninstall managed palette", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        try
+        {
+            PaletteGallery.Uninstall(preset, _service.Log);
+            SetStatus($"Managed palette {preset.Name} removed with backup.");
+        }
+        catch (Exception ex) { SetStatus("Palette removal blocked: " + ex.Message); }
+        RefreshGalleryDetails();
+    }
+    private async void UpdateGalleryPalettes_Click(object sender, RoutedEventArgs e)
+    {
+        var installed = PaletteGallery.Presets.Where(PaletteGallery.IsInstalled).ToArray();
+        if (installed.Length == 0)
+        {
+            SetStatus("No managed palettes installed.");
+            return;
+        }
+        if (MessageBox.Show(this,
+            $"Check {installed.Length} installed managed palette(s) for updates?\n\n" +
+            "Updates only replace unmodified managed copies, after saving backups. " +
+            "Aseprite must be closed.",
+            "Update managed palettes", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        SetBusy(true);
+        int updated = 0;
+        var errors = new List<string>();
+        try
+        {
+            foreach (var preset in installed)
+            {
+                SetStatus("Checking palette " + preset.Name + "...");
+                try
+                {
+                    var (revision, _) = await PaletteGallery.DownloadAsync(preset);
+                    if (string.Equals(PaletteGallery.InstalledRevision(preset), revision,
+                        StringComparison.OrdinalIgnoreCase)) continue;
+                    await Task.Run(() => PaletteGallery.InstallAsync(preset, _service.Log,
+                        CancellationToken.None));
+                    updated++;
+                }
+                catch (Exception ex) { errors.Add(preset.Name + ": " + ex.Message); }
+            }
+            SetStatus(errors.Count == 0
+                ? $"Palette update check complete. {updated} updated, {installed.Length - updated} already current."
+                : $"{updated} updated; some palettes were skipped: " + string.Join(" | ", errors));
+        }
+        finally { SetBusy(false); RefreshGalleryDetails(); }
+    }
+
+    private void OpenPaletteSource_Click(object sender, RoutedEventArgs e)
+    {
+        if (GalleryList.SelectedItem is PalettePreset preset)
+            OpenWebsite(preset.Url);
+    }
+    private void RefreshExtensionDetails()
+    {
+        if (ExtensionStatus == null) return;
+        ExtensionStatus.Text = TileIndexOverlayManager.Installed ?
+            "Installed • commit " + (TileIndexOverlayManager.Revision() ?? "unknown")[..Math.Min(10,
+                (TileIndexOverlayManager.Revision() ?? "unknown").Length)] :
+            "Not installed";
+        if (RemoveOverlayButton != null)
+            RemoveOverlayButton.IsEnabled = !_busy && TileIndexOverlayManager.Installed;
+    }
+    private async void InstallOverlay_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this,
+            "Install Pixeltica's MIT-licensed Tile Index Overlay?\n\n" +
+            "This Lua extension creates tile-number layers and registers a keyboard shortcut. " +
+            "Review its source before use, and close Aseprite before installation.",
+            "Install Lua extension", MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        SetBusy(true);
+        try
+        {
+            SetStatus("Downloading Tile Index Overlay from Pixeltica's GitHub...");
+            await Task.Run(() => TileIndexOverlayManager.InstallAsync(
+                _service.Log, CancellationToken.None));
+            SetStatus("Tile Index Overlay installed. Restart Aseprite.");
+        }
+        catch (Exception ex) { SetStatus("Tile Index Overlay failed: " + ex.Message); }
+        finally { SetBusy(false); RefreshExtensionDetails(); }
+    }
+    private void RemoveOverlay_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this, "Remove the managed Tile Index Overlay? Its backup will be retained.",
+            "Uninstall extension", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        try
+        {
+            if (Process.GetProcessesByName("aseprite").Length > 0)
+                throw new InvalidOperationException("Close Aseprite first.");
+            TileIndexOverlayManager.Remove(_service.Log);
+            SetStatus("Tile Index Overlay removed with backup.");
+        }
+        catch (Exception ex) { SetStatus("Uninstall blocked: " + ex.Message); }
+        RefreshExtensionDetails();
+    }
+    private void ViewOverlay_Click(object sender, RoutedEventArgs e) =>
+        OpenWebsite(TileIndexOverlayManager.Source);
+
+    private void BrowseGodot_Click(object sender, RoutedEventArgs e)
+    {
+        var choose = new OpenFolderDialog { Title = "Select a Godot 4 project (PixelTown or other)" };
+        if (choose.ShowDialog(this) == true) GodotProjectPath.Text = choose.FolderName;
+    }
+    private void GodotProjectPath_Changed(object sender,
+        System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (GodotStatus == null || !IsInitialized) return;
+        RefreshGodotDetails();
+    }
+    private void RefreshGodotDetails()
+    {
+        if (string.IsNullOrWhiteSpace(GodotProjectPath.Text))
+        {
+            GodotStatus.Text = "Choose a folder containing project.godot.";
+            return;
+        }
+        try
+        {
+            var info = GodotWizardManager.Inspect(GodotProjectPath.Text);
+            GodotStatus.Text = !info.Installed ? "Godot 4 project detected • Wizard not installed." :
+                !info.Managed ? "Wizard already exists, but is not Manager-owned. Installation will be blocked." :
+                info.Modified ? "Wizard was manually modified. Update/remove blocked to protect changes." :
+                "Installed • managed version " + info.Revision?[..Math.Min(12, info.Revision.Length)];
+        }
+        catch (Exception ex) { GodotStatus.Text = ex.Message; }
+    }
+    private async void InstallWizard_Click(object sender, RoutedEventArgs e)
+    {
+        var root = GodotProjectPath.Text.Trim();
+        try { GodotWizardManager.VerifyProject(root); }
+        catch (Exception ex) { GodotStatus.Text = ex.Message; return; }
+        if (MessageBox.Show(this,
+            "Install or update the MIT-licensed Aseprite Wizard (Godot 4 branch)?\n\n" +
+            "Project: " + root + "\n\n" +
+            "Manager writes ONLY under addons/AsepriteWizard, retains a ZIP backup when updating, " +
+            "and does not edit project.godot, enable the plugin, or change your sprites. " +
+            "Close Godot first. This plugin contains editor code that executes after you enable it.\n\n" +
+            "Compatibility with PixelTown's provisional Godot 4.7.2 still needs live testing.",
+            "Install Godot editor addon", MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        SetBusy(true);
+        try
+        {
+            SetStatus("Installing Godot Aseprite Wizard into selected project...");
+            await Task.Run(() => GodotWizardManager.InstallOrUpdateAsync(
+                root, _service.Log, CancellationToken.None));
+            SetStatus("Wizard installed. In Godot, enable it under Project Settings > Plugins.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Wizard installation blocked: " + ex.Message);
+            _service.Log("GODOT WIZARD ERROR: " + ex);
+        }
+        finally { SetBusy(false); RefreshGodotDetails(); }
+    }
+    private void RemoveWizard_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this,
+            "Uninstall the Manager-owned Wizard from this project?\n\n" +
+            "Disable the plugin in Godot first, then close Godot. " +
+            "Manager preserves a ZIP backup and does not delete imported sprites, " +
+            "scenes, or project settings.",
+            "Uninstall Godot Wizard", MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        try
+        {
+            GodotWizardManager.Uninstall(GodotProjectPath.Text, _service.Log);
+            SetStatus("Wizard removed. A backup ZIP was saved.");
+        }
+        catch (Exception ex) { SetStatus("Wizard removal blocked: " + ex.Message); }
+        RefreshGodotDetails();
+    }
+    private async void CheckWizard_Click(object sender, RoutedEventArgs e)
+    {
+        SetBusy(true);
+        try
+        {
+            var version = await GodotWizardManager.LatestCommitAsync(CancellationToken.None);
+            var state = GodotWizardManager.Inspect(GodotProjectPath.Text);
+            GodotStatus.Text = !state.Installed ? "Wizard not installed • latest upstream " + version[..10] :
+                !state.Managed ? "Existing Wizard not managed by Aseprite Manager." :
+                state.Modified ? "Local modifications found. Updates are blocked." :
+                state.Revision == version ? "Wizard is up to date." :
+                "A newer Wizard source revision is available.";
+        }
+        catch (Exception ex) { GodotStatus.Text = "Could not check update: " + ex.Message; }
+        finally { SetBusy(false); }
+    }
+    private void ViewWizard_Click(object sender, RoutedEventArgs e) =>
+        OpenWebsite(GodotWizardManager.RepositoryUrl);
+    private async void BackupProfile_Click(object sender, RoutedEventArgs e)
+    {
+        var path = ProfileBackupService.AsepriteProfile;
+        if (MessageBox.Show(this,
+            "Export the Aseprite user profile to a ZIP?\n\n" +
+            "This may include personal settings, sessions, custom extensions, " +
+            "brushes and palette files. Save it somewhere private. " +
+            "The original configuration will be untouched. Close Aseprite first.",
+            "Backup Aseprite profile", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        var save = new SaveFileDialog
+        {
+            Filter = "ZIP archive (*.zip)|*.zip",
+            FileName = "Aseprite-profile-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip",
+            DefaultExt = ".zip",
+            OverwritePrompt = true
+        };
+        if (save.ShowDialog(this) != true) return;
+        SetBusy(true);
+        try
+        {
+            if (Process.GetProcessesByName("aseprite").Length > 0)
+                throw new InvalidOperationException("Close Aseprite before making a consistent backup.");
+            SetStatus("Creating Aseprite configuration backup...");
+            var count = await Task.Run(() => ProfileBackupService.CreateBackup(path, save.FileName));
+            BackupStatus.Text = $"Backup created: {save.FileName} • {count} files.";
+            SetStatus("Configuration archive verified; original Aseprite files remain untouched.");
+        }
+        catch (Exception ex)
+        {
+            BackupStatus.Text = "Backup failed: " + ex.Message;
+            _service.Log("PROFILE BACKUP ERROR: " + ex);
+        }
+        finally { SetBusy(false); }
+    }
+
+    private void ImportBrush_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Select PNG stamp image for reusable brush vault",
+            Filter = "PNG files (*.png)|*.png",
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog(this) != true) return;
+        try
+        {
+            var file = BrushVault.ImportPng(dialog.FileName);
+            BrushStatus.Text = "Saved brush source: " + file +
+                ". Open it in Aseprite, select pixels, press Ctrl+B to save a custom pattern brush.";
+            SetStatus("PNG brush source added without changing Aseprite's preferences.");
+        }
+        catch (Exception ex) { BrushStatus.Text = "Brush import failed: " + ex.Message; }
+    }
+    private void OpenBrushFolder_Click(object sender, RoutedEventArgs e) =>
+        OpenFolder(BrushVault.Folder);
+    private static void OpenWebsite(string url) =>
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+
+
 }
