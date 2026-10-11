@@ -40,6 +40,7 @@ public partial class LibraryWindow : Window
         _busy = value;
         ToolSearch.IsEnabled = !value;
         StarterKitButton.IsEnabled = !value;
+        BackupProfileButton.IsEnabled = !value;
         GalleryList.IsEnabled = !value;
         PaletteSearch.IsEnabled = !value;
         InstallPaletteButton.IsEnabled = !value && GalleryList.SelectedItem != null;
@@ -650,6 +651,42 @@ public partial class LibraryWindow : Window
     }
     private void ViewWizard_Click(object sender, RoutedEventArgs e) =>
         OpenWebsite(GodotWizardManager.RepositoryUrl);
+    private async void BackupProfile_Click(object sender, RoutedEventArgs e)
+    {
+        var path = ProfileBackupService.AsepriteProfile;
+        if (MessageBox.Show(this,
+            "Export the Aseprite user profile to a ZIP?\n\n" +
+            "This may include personal settings, sessions, custom extensions, " +
+            "brushes and palette files. Save it somewhere private. " +
+            "The original configuration will be untouched. Close Aseprite first.",
+            "Backup Aseprite profile", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        var save = new SaveFileDialog
+        {
+            Filter = "ZIP archive (*.zip)|*.zip",
+            FileName = "Aseprite-profile-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip",
+            DefaultExt = ".zip",
+            OverwritePrompt = true
+        };
+        if (save.ShowDialog(this) != true) return;
+        SetBusy(true);
+        try
+        {
+            if (Process.GetProcessesByName("aseprite").Length > 0)
+                throw new InvalidOperationException("Close Aseprite before making a consistent backup.");
+            SetStatus("Creating Aseprite configuration backup...");
+            var count = await Task.Run(() => ProfileBackupService.CreateBackup(path, save.FileName));
+            BackupStatus.Text = $"Backup created: {save.FileName} • {count} files.";
+            SetStatus("Configuration archive verified; original Aseprite files remain untouched.");
+        }
+        catch (Exception ex)
+        {
+            BackupStatus.Text = "Backup failed: " + ex.Message;
+            _service.Log("PROFILE BACKUP ERROR: " + ex);
+        }
+        finally { SetBusy(false); }
+    }
+
     private void ImportBrush_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
