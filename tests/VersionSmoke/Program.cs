@@ -467,3 +467,101 @@ try
     Console.WriteLine("PASS: complete read-only Aseprite profile backup and inside-folder rejection.");
 }
 finally { try { Directory.Delete(profileFixture, true); } catch { } }
+
+
+// Recovery Center: valid archive restores atomically and retains the COMPLETE
+// previous profile, including user.aseprite-brushes and customized scripts.
+var recoveryScratch = Path.Combine(Path.GetTempPath(),
+    "Aseprite Recovery Test " + Guid.NewGuid().ToString("N"));
+var originalProfile = Path.Combine(recoveryScratch, "Aseprite");
+var backupInput = Path.Combine(recoveryScratch, "chosen-backup.zip");
+try
+{
+    Directory.CreateDirectory(Path.Combine(originalProfile, "extensions"));
+    File.WriteAllText(Path.Combine(originalProfile, "aseprite.ini"), "OLD SETTINGS");
+    File.WriteAllText(Path.Combine(originalProfile, "user.aseprite-brushes"), "MY BRUSHES");
+    var stored = Path.Combine(recoveryScratch, "stored-profile");
+    Directory.CreateDirectory(Path.Combine(stored, "scripts"));
+    File.WriteAllText(Path.Combine(stored, "aseprite.ini"), "RESTORED SETTINGS");
+    File.WriteAllText(Path.Combine(stored, "scripts", "custom.lua"), "custom Lua");
+    System.IO.Compression.ZipFile.CreateFromDirectory(stored, backupInput);
+
+    var summary = ProfileRecoveryService.Inspect(backupInput);
+    if (summary.FileCount != 2 || !summary.ContainsSettings)
+        throw new Exception("Backup preview did not identify expected contents.");
+    var oldCopy = ProfileRecoveryService.Restore(backupInput, originalProfile, _ => { });
+    if (!Directory.Exists(oldCopy) ||
+        File.ReadAllText(Path.Combine(oldCopy, "user.aseprite-brushes")) != "MY BRUSHES" ||
+        File.ReadAllText(Path.Combine(originalProfile, "aseprite.ini")) != "RESTORED SETTINGS" ||
+        !File.Exists(Path.Combine(originalProfile, "scripts", "custom.lua")))
+        throw new Exception("Restore did not preserve previous profile and restore new files.");
+
+    var malicious = Path.Combine(recoveryScratch, "malicious.zip");
+    using (var stream = File.Create(malicious))
+    using (var zip = new System.IO.Compression.ZipArchive(stream,
+        System.IO.Compression.ZipArchiveMode.Create))
+    {
+        using var writer = new StreamWriter(zip.CreateEntry("../outside.txt").Open());
+        writer.Write("bad");
+    }
+    try
+    {
+        ProfileRecoveryService.Inspect(malicious);
+        throw new Exception("Traversal archive should not validate.");
+    }
+    catch (InvalidDataException) { }
+    if (File.ReadAllText(Path.Combine(originalProfile, "aseprite.ini")) != "RESTORED SETTINGS")
+        throw new Exception("Rejected archive modified existing settings.");
+    Console.WriteLine("PASS: transactional profile recovery, retained brushes, ZIP traversal rejection.");
+}
+finally { try { Directory.Delete(recoveryScratch, true); } catch { } }
+
+// Portable project profiles contain references, not copied copyrighted assets
+// and do not automatically execute or install third-party scripts.
+var profileScratch = Path.Combine(Path.GetTempPath(),
+    "Profile Export Test " + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(profileScratch);
+try
+{
+    var expected = ProjectProfiles.Validate(new ProjectProfiles.Profile("PixelTown",
+        @"C:\Projects\PixelTown", new[]
+        { "tool:split-tiles", "tool:split-tiles", "palette:db32", "godot:aseprite-wizard" },
+        "Warm village assets; provisional 16×16 grid"));
+    if (expected.ResourceIds.Length != 3)
+        throw new Exception("Profile resource references were not deduplicated.");
+    var filename = Path.Combine(profileScratch, "profile.json");
+    ProjectProfiles.Export(expected, filename);
+    var loaded = ProjectProfiles.Load(filename);
+    if (loaded.Name != expected.Name ||
+        !loaded.ResourceIds.SequenceEqual(expected.ResourceIds))
+        throw new Exception("Portable JSON profile round trip failed.");
+    try
+    {
+        ProjectProfiles.Validate(expected with { ResourceIds = new[] { "script:untrusted-code" } });
+        throw new Exception("Unknown tool references were accepted.");
+    }
+    catch (InvalidDataException) { }
+    Console.WriteLine("PASS: safe portable project profiles, no unknown resource identifiers.");
+}
+finally { try { Directory.Delete(profileScratch, true); } catch { } }
+
+
+// Persistent local favorites never install executable code or allow unlisted IDs.
+if (!LibraryFavorites.IsAllowed("tool:glass-floor") ||
+    !LibraryFavorites.IsAllowed("palette:db32") ||
+    LibraryFavorites.IsAllowed("tool:unknown-resource"))
+    throw new Exception("Library favorites allowlist is incorrect.");
+var initiallyLiked = LibraryFavorites.Read().Contains("tool:glass-floor");
+var newLiked = LibraryFavorites.Toggle("tool:glass-floor");
+if (newLiked == initiallyLiked)
+    throw new Exception("Favorite toggle did not flip its value.");
+LibraryFavorites.Toggle("tool:glass-floor");
+if (LibraryFavorites.Read().Contains("tool:glass-floor") != initiallyLiked)
+    throw new Exception("Favorite preference could not be restored.");
+try
+{
+    LibraryFavorites.Toggle("tool:unreviewed-code");
+    throw new Exception("Unknown Lua favorites must be rejected.");
+}
+catch (InvalidDataException) { }
+Console.WriteLine("PASS: safe favorites persistence and resource allowlist.");

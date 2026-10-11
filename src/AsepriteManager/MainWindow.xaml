@@ -176,6 +176,25 @@
                     </StackPanel>
                 </Grid>
 
+                <Border Background="#1D2B43" CornerRadius="12" BorderBrush="#526D90"
+                        BorderThickness="1" Padding="15" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="210"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
+                            <TextBlock Text="CONTROL CENTER" FontWeight="Bold" FontSize="13"
+                                       Foreground="#C6B8FF"/>
+                            <TextBlock Text="Check every update, restore Aseprite settings, and save project toolkits."
+                                       Foreground="#BBCBDE" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Open Control Center"
+                                Background="#6C56BF" VerticalAlignment="Center"
+                                Click="OpenControlCenter_Click"/>
+                    </Grid>
+                </Border>
+
                 <Border Background="#1C2945" CornerRadius="12" BorderBrush="#53628A"
                         BorderThickness="1" Padding="15" Margin="0,0,0,16">
                     <Grid>

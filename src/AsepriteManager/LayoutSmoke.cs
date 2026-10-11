@@ -56,6 +56,44 @@ public static class LayoutSmoke
             encoder.Save(stream);
             Console.WriteLine($"PASS: WPF layout {width}x{height}");
         }
+        foreach (var (width, height) in new[] { (780, 580), (940, 760) })
+        {
+            var main = new MainWindow();
+            var center = new ControlCenterWindow(main, new ManagerService(), ManagerService.DefaultInstall);
+            foreach (var pane in new[]
+            {
+                (Label: "updates", Section: center.UpdatesPage),
+                (Label: "recovery", Section: center.RecoveryPage),
+                (Label: "profiles", Section: center.ProfilesPage)
+            })
+            {
+                center.ShowPage(pane.Label);
+                var root = (FrameworkElement)center.Content;
+                root.Measure(new Size(width, height));
+                root.Arrange(new Rect(0, 0, width, height));
+                root.UpdateLayout();
+                var visibleControls = pane.Label switch
+                {
+                    "updates" => new FrameworkElement[]
+                    { center.CheckAllButton, center.UpdateSummary, center.HubStatus },
+                    "recovery" => new FrameworkElement[]
+                    { center.CreateBackupButton, center.RecoveryDetails, center.HubStatus },
+                    _ => new FrameworkElement[]
+                    { center.SaveProfileButton, center.SavedProfiles, center.HubStatus }
+                };
+                foreach (var control in visibleControls)
+                    if (control.ActualWidth < 20 || double.IsNaN(control.ActualWidth))
+                        throw new InvalidOperationException($"Control Center layout failure: {control.Name}");
+                var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(root);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var stream = File.Create(
+                    Path.Combine("ui-snapshots", $"control-center-{pane.Label}-{width}x{height}.png"));
+                encoder.Save(stream);
+                Console.WriteLine($"PASS: Control Center {pane.Label} {width}x{height}");
+            }
+        }
         foreach (var (width, height) in new[] { (850, 660), (1050, 780) })
         {
             var library = new LibraryWindow(new ManagerService());

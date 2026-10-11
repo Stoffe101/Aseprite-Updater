@@ -39,6 +39,10 @@ public partial class LibraryWindow : Window
     {
         _busy = value;
         ToolSearch.IsEnabled = !value;
+        ToolFavoritesOnly.IsEnabled = !value;
+        PaletteFavoritesOnly.IsEnabled = !value;
+        FavoriteToolButton.IsEnabled = !value && ToolList.SelectedItem != null;
+        FavoritePaletteButton.IsEnabled = !value && GalleryList.SelectedItem != null;
         StarterKitButton.IsEnabled = !value;
         BackupProfileButton.IsEnabled = !value;
         GalleryList.IsEnabled = !value;
@@ -69,15 +73,47 @@ public partial class LibraryWindow : Window
     }
 
     private void Search_Changed(object sender,
-        System.Windows.Controls.TextChangedEventArgs e)
+        System.Windows.Controls.TextChangedEventArgs e) => FilterTools();
+
+    private void FavoriteFilter_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsInitialized) return;
+        FilterTools();
+        FilterPalettes();
+    }
+
+    private void FilterTools()
     {
         if (ToolList == null || !IsInitialized) return;
         var phrase = ToolSearch.Text.Trim();
+        var selected = (ToolList.SelectedItem as LibraryTool)?.Id;
+        var favorites = LibraryFavorites.Read().ToHashSet(StringComparer.Ordinal);
         ToolList.ItemsSource = WorkshopLibrary.Tools.Where(item =>
-            phrase.Length == 0 || string.Join(" ", item.Name, item.Kind,
+            (!ToolFavoritesOnly.IsChecked.GetValueOrDefault() ||
+                favorites.Contains("tool:" + item.Id)) &&
+            (phrase.Length == 0 || string.Join(" ", item.Name, item.Kind,
                 item.Description, item.PixelTownUse).Contains(phrase,
-                    StringComparison.OrdinalIgnoreCase)).ToArray();
-        ToolList.SelectedIndex = ToolList.Items.Count > 0 ? 0 : -1;
+                    StringComparison.OrdinalIgnoreCase))).ToArray();
+        ToolList.SelectedItem = ToolList.Items.Cast<LibraryTool>().FirstOrDefault(t => t.Id == selected);
+        if (ToolList.SelectedItem == null && ToolList.Items.Count > 0) ToolList.SelectedIndex = 0;
+    }
+
+    private void FavoriteTool_Click(object sender, RoutedEventArgs e)
+    {
+        if (ToolList.SelectedItem is not LibraryTool tool) return;
+        var added = LibraryFavorites.Toggle("tool:" + tool.Id);
+        SetStatus((added ? "Favorited " : "Unfavorited ") + tool.Name);
+        FilterTools();
+        RefreshToolDetails();
+    }
+
+    private void FavoritePalette_Click(object sender, RoutedEventArgs e)
+    {
+        if (GalleryList.SelectedItem is not PalettePreset preset) return;
+        var added = LibraryFavorites.Toggle("palette:" + preset.Id);
+        SetStatus((added ? "Favorited " : "Unfavorited ") + preset.Name);
+        FilterPalettes();
+        RefreshGalleryDetails();
     }
 
     private void ToolList_SelectionChanged(object sender,
@@ -102,6 +138,7 @@ public partial class LibraryWindow : Window
         InstallToolButton.Content = installed ? "Reinstall / update" : "Install selected";
         InstallToolButton.IsEnabled = !_busy;
         RemoveToolButton.IsEnabled = !_busy && installed;
+        FavoriteToolButton.Content = LibraryFavorites.Read().Contains("tool:" + tool.Id) ? "Remove favorite" : "Add favorite";
     }
 
     private async void InstallTool_Click(object sender, RoutedEventArgs e)
@@ -380,14 +417,21 @@ public partial class LibraryWindow : Window
     }
 
     private void PaletteSearch_Changed(object sender,
-        System.Windows.Controls.TextChangedEventArgs e)
+        System.Windows.Controls.TextChangedEventArgs e) => FilterPalettes();
+
+    private void FilterPalettes()
     {
         if (GalleryList == null || !IsInitialized) return;
         var term = PaletteSearch.Text.Trim();
+        var selected = (GalleryList.SelectedItem as PalettePreset)?.Id;
+        var favorites = LibraryFavorites.Read().ToHashSet(StringComparer.Ordinal);
         GalleryList.ItemsSource = PaletteGallery.Presets.Where(p =>
-            term.Length == 0 || string.Join(" ", p.Name, p.Credit, p.Usage)
-                .Contains(term, StringComparison.OrdinalIgnoreCase)).ToArray();
-        GalleryList.SelectedIndex = GalleryList.Items.Count > 0 ? 0 : -1;
+            (!PaletteFavoritesOnly.IsChecked.GetValueOrDefault() ||
+                favorites.Contains("palette:" + p.Id)) &&
+            (term.Length == 0 || string.Join(" ", p.Name, p.Credit, p.Usage)
+                .Contains(term, StringComparison.OrdinalIgnoreCase))).ToArray();
+        GalleryList.SelectedItem = GalleryList.Items.Cast<PalettePreset>().FirstOrDefault(p => p.Id == selected);
+        if (GalleryList.SelectedItem == null && GalleryList.Items.Count > 0) GalleryList.SelectedIndex = 0;
     }
     private void GalleryList_SelectionChanged(object sender,
         System.Windows.Controls.SelectionChangedEventArgs e) => RefreshGalleryDetails();
@@ -408,6 +452,7 @@ public partial class LibraryWindow : Window
         PaletteSwatches.Children.Clear();
         RemoveGalleryPaletteButton.IsEnabled = !_busy && PaletteGallery.IsInstalled(preset);
         InstallPaletteButton.Content = PaletteGallery.IsInstalled(preset) ? "Reinstall / update" : "Install preset";
+        FavoritePaletteButton.Content = LibraryFavorites.Read().Contains("palette:" + preset.Id) ? "Remove favorite" : "Add favorite";
     }
     private async void PreviewPalette_Click(object sender, RoutedEventArgs e)
     {

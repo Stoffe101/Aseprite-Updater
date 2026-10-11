@@ -63,6 +63,15 @@ Each executable third-party component requires user confirmation and carries a d
 
 **Detailed provenance and the Windows test plan:** [docs/RESOURCE_HUB_V05.md](docs/RESOURCE_HUB_V05.md).
 
+## Control Center (v0.6.0)
+
+- **Unified update review:** checks Aseprite, Manager releases, managed themes, scripts, palettes, Tile Index and Godot Wizard. Updates still require individual confirmation in their dedicated workflows.
+- **Profile recovery:** previews and validates a full configuration ZIP, then restores in stages while retaining the complete previous Aseprite profile for rollback.
+- **Project profiles:** save portable JSON manifests for a project's preferred installed tools, palettes and themes; compare missing resources on another computer.
+- **Polished navigation:** Update Center, Recovery and Project Profiles have dedicated pages with multi-size WPF screenshot tests.
+
+No sprite or asset generator is included. Auto-updating the Manager executable and unattended Update All are not claimed; both require verified release distribution and rollback checks. Read [Control Center v0.6 documentation](docs/CONTROL_CENTER_V06.md) for complete safety notes and outstanding testing.
+
 ## Development
 
 1. Install the .NET 8 SDK on a Windows 11 development machine.
