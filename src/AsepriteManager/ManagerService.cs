@@ -18,7 +18,7 @@ public sealed record DependencyReport(string? Git, string? CMake, string? Ninja,
 
 public static class VersionOrder
 {
-    private static readonly Regex Pattern = new(@"(?<![0-9])v?(?<number>\d+(?:\.\d+){2,3})(?<suffix>-[A-Za-z][0-9A-Za-z.-]*)?",
+    private static readonly Regex Pattern = new(@"(?<![0-9])v?(?<number>\d+(?:\.\d+){1,3})(?<suffix>-[A-Za-z][0-9A-Za-z.-]*)?",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public static string? Parse(string value)
