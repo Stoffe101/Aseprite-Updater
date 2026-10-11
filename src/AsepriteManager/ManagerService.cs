@@ -256,6 +256,11 @@ public sealed class ManagerService
             ct.ThrowIfCancellationRequested();
             progress.Report(new WorkStatus(80, "Staging", "Preparing the verified build without touching the current installation..."));
             CopyDirectory(built, stage);
+            // Source-built executables may not embed a usable Windows icon.
+            // Preserve the upstream-supplied real Aseprite icon alongside it.
+            var upstreamIcon = Path.Combine(source, "data", "icons", "ase.ico");
+            if (File.Exists(upstreamIcon))
+                File.Copy(upstreamIcon, Path.Combine(stage, "aseprite.ico"), overwrite: true);
             if (Directory.Exists(installDir))
                 InstallSafety.PreserveUserContent(installDir, stage, Log);
             var marker = JsonSerializer.Serialize(new { version = release.Version, release = release.Tag,
@@ -294,6 +299,21 @@ public sealed class ManagerService
         }
     }
 
+    public void RepairAsepriteShortcut(string installDir)
+    {
+        var exe = Path.Combine(installDir, "aseprite.exe");
+        if (!File.Exists(exe))
+            throw new FileNotFoundException("Select an installed Aseprite directory first.", exe);
+        var icon = Path.Combine(installDir, "aseprite.ico");
+        if (!File.Exists(icon))
+        {
+            var inData = Path.Combine(installDir, "data", "icons", "ase.ico");
+            if (File.Exists(inData)) File.Copy(inData, icon);
+        }
+        CreateStartMenuShortcut(installDir);
+        Log("Updated Aseprite's Start Menu shortcut with the official installed icon.");
+    }
+
     private static void CreateStartMenuShortcut(string installDir)
     {
         var programs = Path.Combine(
@@ -309,7 +329,10 @@ public sealed class ManagerService
         shortcut.TargetPath = target;
         shortcut.WorkingDirectory = installDir;
         shortcut.Description = "Aseprite (compiled locally from official source)";
-        shortcut.IconLocation = target + ",0";
+        var officialIcon = Path.Combine(installDir, "aseprite.ico");
+        if (!File.Exists(officialIcon))
+            officialIcon = Path.Combine(installDir, "data", "icons", "ase.ico");
+        shortcut.IconLocation = File.Exists(officialIcon) ? officialIcon + ",0" : target + ",0";
         shortcut.Save();
     }
 
