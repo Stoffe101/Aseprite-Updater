@@ -60,7 +60,7 @@ public sealed class GodotWizardManager
 
     public static async Task<string> LatestCommitAsync(CancellationToken ct)
     {
-        using var response = await Client.GetAsync(
+        using var response = await GitHubApi.GetAsync(Client,
             "https://api.github.com/repos/viniciusgerevini/godot-aseprite-wizard/commits/godot_4", ct);
         response.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
