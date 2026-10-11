@@ -28,6 +28,7 @@ Older published tags may use obsolete upstream build scripts, Skia versions or t
 - **Check for updates:** fetch the official Aseprite release list and highlight a newer stable version if one exists.
 - **Update Aseprite to latest:** a dedicated button selects the latest stable release and starts the existing, independently verified compile-and-backup pipeline. Nothing is updated without confirmation.
 - **Curated theme gallery:** Catppuccin Mocha/Macchiato/Frappé/Latte, Dracula and Monaki. Download from theme maintainers' official GitHub sources, verify package metadata, and extract a restricted list of theme-related files into the *user* Aseprite extensions directory.
+- **Install recommended themes:** one click for Catppuccin Mocha, Dracula and Monaki (individual installs remain optional).
 - **Theme update checks:** compare installed manager-tracked revisions with upstream GitHub. Update managed themes separately from Aseprite. Local file changes block replacement, and original theme directories are retained as backups.
 - **Aseprite logo/icon repair:** use the official icon bundled with the upstream source-built Aseprite. Recreate the Windows Start Menu shortcut with the bundled icon.
 
