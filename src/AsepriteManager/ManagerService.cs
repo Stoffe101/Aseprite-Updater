@@ -417,6 +417,7 @@ public sealed class ManagerService
             @"Windows Kits\10\Include");
         if (!Directory.Exists(kitRoot)) return false;
         return Directory.EnumerateDirectories(kitRoot).Any(dir =>
+            Path.GetFileName(dir).StartsWith("10.0.26100.", StringComparison.OrdinalIgnoreCase) &&
             Directory.Exists(Path.Combine(dir, "um")) &&
             Directory.Exists(Path.Combine(dir, "ucrt")));
     }
@@ -458,7 +459,7 @@ public sealed class ManagerService
                 UseShellExecute = false, RedirectStandardOutput = true,
                 CreateNoWindow = true
             };
-            foreach (var arg in new[] { "-latest", "-products", "*", "-requires",
+            foreach (var arg in new[] { "-latest", "-version", "[17.0,18.0)", "-products", "*", "-requires",
                 "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-find",
                 @"VC\Auxiliary\Build\vcvars64.bat" }) psi.ArgumentList.Add(arg);
             using var p = Process.Start(psi);
