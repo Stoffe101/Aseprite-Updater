@@ -288,6 +288,23 @@
                     </StackPanel>
                 </Border>
 
+                <Border Background="{StaticResource Panel}" BorderBrush="#36445E"
+                        BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
+                    <StackPanel>
+                        <TextBlock Text="PROFILE BACKUP" Foreground="#C2B2FF" FontSize="12"
+                                   FontWeight="Bold"/>
+                        <TextBlock Text="Save your complete Aseprite configuration"
+                                   FontSize="20" FontWeight="Bold" TextWrapping="Wrap" Margin="0,7,0,5"/>
+                        <TextBlock Text="Export a ZIP containing your settings, saved brushes, scripts, extensions and palettes. Aseprite must be closed. Your active profile is never edited. Restore is deliberately manual until a tested rollback workflow is available."
+                                   Foreground="#B7C6DD" TextWrapping="Wrap" Margin="0,0,0,13"/>
+                        <Button x:Name="BackupProfileButton" Content="Create profile backup ZIP"
+                                HorizontalAlignment="Left" Background="#6652AA"
+                                Click="BackupProfile_Click" MinWidth="226"/>
+                        <TextBlock x:Name="BackupStatus" Text="No backup has been created this session."
+                                   Foreground="#B7A8F0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
                 <Border Background="#17243A" BorderThickness="1" BorderBrush="#354762"
                         Padding="16" CornerRadius="12">
                     <StackPanel>
