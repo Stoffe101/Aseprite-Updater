@@ -232,20 +232,17 @@ public sealed class ManagerService
 
             progress.Report(new WorkStatus(30, "Building", "Compiling Aseprite with the official --auto helper. This may take a while."));
             // Do NOT invoke upstream build.cmd: it unconditionally pauses at the end.
-            var script = Path.Combine(session, "build-with-msvc.cmd");
-            var extra = string.Join(";", new[] {
-                Path.GetDirectoryName(deps.Git!), Path.GetDirectoryName(deps.CMake!), Path.GetDirectoryName(deps.Ninja!)
-            }.Distinct(StringComparer.OrdinalIgnoreCase));
-            var lines = new[] {
-                "@echo off", "setlocal",
-                $"set \"PATH={extra};%PATH%\"",
-                $"call \"{deps.VsDevCmd}\" -arch=x64 >nul",
-                "if errorlevel 1 exit /b %errorlevel%",
-                $"\"{gitBash}\" ./build.sh --auto --norun",
-                "exit /b %errorlevel%"
+            // The batch must live in source, and cmd.exe must receive a *relative*
+            // name. Absolute quoted commands forwarded via ProcessStartInfo.ArgumentList
+            // fail when the parent path contains spaces (confirmed on Windows 11).
+            var extraDirs = new[] {
+                Path.GetDirectoryName(deps.Git!)!,
+                Path.GetDirectoryName(deps.CMake!)!,
+                Path.GetDirectoryName(deps.Ninja!)!
             };
-            await File.WriteAllLinesAsync(script, lines, ct);
-            await RunAsync("cmd.exe", new[] { "/d", "/s", "/c", $"\"{script}\"" }, source, ct);
+            WindowsBatchLauncher.WriteAsepriteWrapper(source, deps.VsDevCmd!, gitBash, extraDirs);
+            Log("Starting Aseprite's official build helper using a relative Windows batch command.");
+            await RunAsync("cmd.exe", WindowsBatchLauncher.Arguments(), source, ct);
 
             var built = Path.Combine(source, "build", "bin");
             var newExe = Path.Combine(built, "aseprite.exe");
