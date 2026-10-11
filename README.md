@@ -49,6 +49,20 @@ Scripts can execute code *when you run them inside Aseprite*. Only explicitly re
 
 See the full [PixelTown audit and library research](docs/PIXELTOWN_LIBRARY_AUDIT.md) for art scales, source licensing, scope boundaries and Windows QA gates. PixelTown's public source/art remains All Rights Reserved: this app does not copy those assets or automatically modify the Godot project.
 
+## Expanded Creator's Library (v0.5.0 preview)
+
+The Windows Manager now provides a larger Aseprite resource hub:
+
+- **Seven curated Lua tools** from the official MIT-licensed Aseprite examples, including animation-tag sprite sheet exports, sprite stacking and layer merging. The four foundational tools remain in the PixelTown starter kit.
+- **13 color palettes** with live swatch previews from the upstream Aseprite palette collection. Many are already included in Aseprite, and authors keep their individual licensing terms. Optional managed copies can be installed without changing any original artwork.
+- **Tile Index Overlay** from Pixeltica (MIT), with opt-in installation, update and removal. This Lua extension adds a command and may register keyboard shortcuts.
+- **Godot 4 Aseprite Wizard**, installed per selected Godot 4 project using the exact upstream commit. Revisions are tracked, unknown/modified plugins are protected, and previous copies are backed up before upgrades. **Manager does not enable the plugin or modify project.godot.** Godot 4.7.2 compatibility still requires real editor-side testing.
+- **PNG brush-source vault**: organizes user-supplied brush stamps safely. Open the PNG in Aseprite and press Ctrl+B to make a custom brush. Does **not** silently rewrite Aseprite's internal brush settings.
+
+Each executable third-party component requires user confirmation and carries a direct source link. The goal is a secure, predictable resource hub rather than an unreviewed automatic code installer. Brush-pack registration and a general extension marketplace are not yet complete.
+
+**Detailed provenance and the Windows test plan:** [docs/RESOURCE_HUB_V05.md](docs/RESOURCE_HUB_V05.md).
+
 ## Development
 
 1. Install the .NET 8 SDK on a Windows 11 development machine.
