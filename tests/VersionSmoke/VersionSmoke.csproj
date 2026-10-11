@@ -16,5 +16,6 @@
     <Compile Include="../../src/AsepriteManager/PaletteGallery.cs" Link="PaletteGallery.cs" />
     <Compile Include="../../src/AsepriteManager/TileIndexOverlayManager.cs" Link="TileIndexOverlayManager.cs" />
     <Compile Include="../../src/AsepriteManager/ProfileBackupService.cs" Link="ProfileBackupService.cs" />
+    <Compile Include="../../src/AsepriteManager/GitHubApi.cs" Link="GitHubApi.cs" />
   </ItemGroup>
 </Project>
