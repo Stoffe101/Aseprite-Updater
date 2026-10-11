@@ -159,6 +159,81 @@ if (OperatingSystem.IsWindows())
 }
 
 
+// Regression: upstream Aseprite build.sh uses unquoted $pwd for .build/
+// metadata and Skia directories. Even if the real AppData path has spaces,
+// Git Bash must see a short path through the temporary build drive.
+if (OperatingSystem.IsWindows())
+{
+    var physicalRoot = Path.Combine(Path.GetTempPath(),
+        "Aseprite Manager root containing spaces " + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(physicalRoot);
+    try
+    {
+        using (var mapping = WindowsBuildDrive.Mount(physicalRoot))
+        {
+            var mappedSource = Path.Combine(mapping.Root, "source");
+            Directory.CreateDirectory(mappedSource);
+            if (mappedSource.Contains(' '))
+                throw new Exception("Build drive path unexpectedly contains spaces.");
+            File.WriteAllText(Path.Combine(mappedSource, "build.sh"),
+                "#!/usr/bin/env bash\n" +
+                "set -e\n" +
+                "pwd=$(pwd)\n" +
+                "echo \"EFFECTIVE_SOURCE=$pwd\"\n" +
+                "mkdir -p \"$pwd/.build\"\n" +
+                "echo user > $pwd/.build/userkind\n" +
+                "userkind=$(cat $pwd/.build/userkind)\n" +
+                "echo \"$pwd\" > \"$pwd/.build/builds_dir\"\n" +
+                "builds_dir=\"$(cat $pwd/.build/builds_dir)\"\n" +
+                "skia_dir=\"$pwd/.deps/skia-m124\"\n" +
+                "mkdir -p $skia_dir\n" +
+                "echo $skia_dir > \"$pwd/.build/HEAD_skia_dir\"\n" +
+                "skia_dir=$(cat $pwd/.build/HEAD_skia_dir)\n" +
+                "test \"$userkind\" = user\n" +
+                "test \"$builds_dir\" = \"$pwd\"\n" +
+                "test -d \"$skia_dir\"\n" +
+                "test \"$1\" = --auto && test \"$2\" = --norun\n" +
+                "echo OFFICIAL_UNQUOTED_PATH_CASE_PASSED\n");
+            var fakeVs = Path.Combine(physicalRoot, "Visual Studio Tools", "vcvars64.bat");
+            Directory.CreateDirectory(Path.GetDirectoryName(fakeVs)!);
+            File.WriteAllLines(fakeVs, new [] { "@echo off", "echo MSVC_OK", "exit /b 0" });
+            var bash = @"C:\Program Files\Git\bin\bash.exe";
+            if (!File.Exists(bash))
+                throw new Exception("Git Bash expected on Windows CI runner.");
+            WindowsBatchLauncher.WriteAsepriteWrapper(
+                mappedSource, fakeVs, bash, new [] { Path.GetDirectoryName(bash)! });
+            using var process = new System.Diagnostics.Process();
+            process.StartInfo = new System.Diagnostics.ProcessStartInfo("cmd.exe")
+            {
+                WorkingDirectory = mappedSource, UseShellExecute = false,
+                CreateNoWindow = true, RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            foreach (var arg in WindowsBatchLauncher.Arguments())
+                process.StartInfo.ArgumentList.Add(arg);
+            if (!process.Start()) throw new Exception("Could not launch mapped-drive build.");
+            var stdout = process.StandardOutput.ReadToEnd();
+            var stderr = process.StandardError.ReadToEnd();
+            if (!process.WaitForExit(30000))
+            {
+                process.Kill(entireProcessTree: true);
+                throw new Exception("Regression build helper hung.");
+            }
+            if (process.ExitCode != 0 ||
+                !stdout.Contains("OFFICIAL_UNQUOTED_PATH_CASE_PASSED"))
+                throw new Exception("Unquoted upstream Aseprite paths still fail: " + stdout + "\n" + stderr);
+            if (File.ReadAllText(Path.Combine(physicalRoot, "source", ".build", "userkind")).Trim() != "user" ||
+                !Directory.Exists(Path.Combine(physicalRoot, "source", ".deps", "skia-m124")))
+                throw new Exception("Mapped build path did not materialize files in the private physical session.");
+            Console.WriteLine("PASS: actual Git Bash unquoted Aseprite path syntax with spaced AppData folder.");
+        }
+        // The mapping must be removed after the run.
+        if (Directory.Exists(Path.Combine(physicalRoot, "source", ".build")) == false)
+            throw new Exception("Disposing the build drive unexpectedly deleted physical build files.");
+    }
+    finally { try { Directory.Delete(physicalRoot, true); } catch { } }
+}
+
 // Curated themes can contain graphics, fonts and metadata, but never executable
 // scripts and never paths that escape the designated extension folder.
 byte[] BuildThemeZip(bool includeEvil = false)
