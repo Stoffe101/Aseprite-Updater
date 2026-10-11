@@ -78,6 +78,22 @@ public static class PaletteGallery
         }
         catch { return null; }
     }
+    public static void Uninstall(PalettePreset preset, Action<string> log)
+    {
+        if (!Presets.Contains(preset)) throw new InvalidOperationException("Unknown palette.");
+        if (System.Diagnostics.Process.GetProcessesByName("aseprite").Length > 0)
+            throw new InvalidOperationException("Close Aseprite before removing a palette.");
+        var dir = Path.Combine(WorkshopLibrary.ExtensionsFolder, "managed-gallery-" + preset.Id);
+        var receipt = WorkshopLibrary.RecordPath("gallery-" + preset.Id);
+        WorkshopLibrary.ValidateOwned(dir, receipt);
+        Directory.CreateDirectory(WorkshopLibrary.BackupsFolder);
+        var backup = Path.Combine(WorkshopLibrary.BackupsFolder,
+            "gallery-" + preset.Id + "-" + Guid.NewGuid().ToString("N"));
+        Directory.Move(dir, backup);
+        File.Delete(receipt);
+        log($"Uninstalled managed {preset.Name}; retained backup at {backup}. Bundled Aseprite palettes are untouched.");
+    }
+
     public static async Task InstallAsync(PalettePreset preset, Action<string> log, CancellationToken ct)
     {
         var (_, gpl) = await DownloadAsync(preset, ct);
