@@ -237,7 +237,25 @@ public sealed class ManagerService
                     cacheHit = false;
                 }
             }
+            var backupHit = false;
             if (!cacheHit)
+            {
+                backupHit = AsepriteBuildCache.TryStagePreviousInstall(
+                    installDir, release.Tag, release.Version, stage, Log);
+                if (backupHit)
+                {
+                    var restoredVersion = await ReadInstalledVersionAsync(stage, ct,
+                        allowMarkerFallback: false);
+                    if (restoredVersion == null ||
+                        VersionOrder.Compare(restoredVersion, release.Version) != 0)
+                    {
+                        Log("Backup executable did not match requested release. Ignoring candidate.");
+                        TryDelete(stage);
+                        backupHit = false;
+                    }
+                }
+            }
+            if (!cacheHit && !backupHit)
             {
                 var deps = ScanDependencies();
                 if (!deps.Complete)
@@ -303,6 +321,7 @@ public sealed class ManagerService
             }
             progress.Report(new WorkStatus(80, "Staging",
                 cacheHit ? "Restoring a verified local build; protecting your existing installation..." :
+                backupHit ? "Restoring a previously installed version without recompilation..." :
                     "Preparing the new verified source build; preserving your artwork and settings..."));
             if (Directory.Exists(installDir))
                 InstallSafety.PreserveUserContent(installDir, stage, Log);
