@@ -62,7 +62,7 @@ public static class WorkshopLibrary
 
     public static async Task<string> LatestToolRevision(CancellationToken ct)
     {
-        using var response = await Client.GetAsync(
+        using var response = await GitHubApi.GetAsync(Client,
             "https://api.github.com/repos/aseprite/Aseprite-Script-Examples/commits/main", ct);
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
