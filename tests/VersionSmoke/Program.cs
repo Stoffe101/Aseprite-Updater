@@ -351,25 +351,25 @@ finally { try { Directory.Delete(godotSafeRoot, true); } catch { } }
 
 if (args.Contains("--godot-integration"))
 {
-    var project = Path.Combine(Path.GetTempPath(), "Godot 4 Project " + Guid.NewGuid().ToString("N"));
-    Directory.CreateDirectory(project);
-    var config = Path.Combine(project, "project.godot");
+    var godotFixtureProject = Path.Combine(Path.GetTempPath(), "Godot 4 Project " + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(godotFixtureProject);
+    var config = Path.Combine(godotFixtureProject, "project.godot");
     var original = "config_version=5\n[application]\nconfig/name=\"CI Wizard Test\"\n";
     File.WriteAllText(config, original);
     try
     {
-        await GodotWizardManager.InstallOrUpdateAsync(project, Console.WriteLine, CancellationToken.None);
+        await GodotWizardManager.InstallOrUpdateAsync(godotFixtureProject, Console.WriteLine, CancellationToken.None);
         var state = GodotWizardManager.Inspect(project);
         if (!state.Installed || !state.Managed || state.Modified ||
             !File.Exists(Path.Combine(state.PluginPath, "plugin.gd")) ||
             File.ReadAllText(config) != original)
             throw new Exception("Godot Wizard install changed project config or failed integrity.");
-        GodotWizardManager.Uninstall(project, Console.WriteLine);
+        GodotWizardManager.Uninstall(godotFixtureProject, Console.WriteLine);
         if (Directory.Exists(state.PluginPath) || File.ReadAllText(config) != original)
             throw new Exception("Godot addon uninstall touched the project or retained plugin files.");
         Console.WriteLine("PASS: real Godot 4 Wizard addon downloaded, installed and removed without changing project.godot.");
     }
-    finally { try { Directory.Delete(project, true); } catch { } }
+    finally { try { Directory.Delete(godotFixtureProject, true); } catch { } }
 }
 if (args.Contains("--palette-integration"))
 {
