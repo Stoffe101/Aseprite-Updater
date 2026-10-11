@@ -71,10 +71,10 @@
                    Style="{StaticResource Description}"/>
       </StackPanel>
       <WrapPanel Grid.Row="1" Margin="25,0,25,8">
-        <Button Content="Update Center" Tag="updates" Background="#6954B8"
+        <Button x:Name="UpdatesTab" Content="Update Center" Tag="updates" Background="#6954B8"
                 Click="Navigate_Click" MinWidth="152"/>
-        <Button Content="Recovery" Tag="recovery" Click="Navigate_Click"/>
-        <Button Content="Project Profiles" Tag="profiles" Click="Navigate_Click" MinWidth="153"/>
+        <Button x:Name="RecoveryTab" Content="Recovery" Tag="recovery" Click="Navigate_Click"/>
+        <Button x:Name="ProfilesTab" Content="Project Profiles" Tag="profiles" Click="Navigate_Click" MinWidth="153"/>
       </WrapPanel>
       <ScrollViewer Grid.Row="2" x:Name="PageScroller" VerticalScrollBarVisibility="Auto"
                     HorizontalScrollBarVisibility="Disabled">
