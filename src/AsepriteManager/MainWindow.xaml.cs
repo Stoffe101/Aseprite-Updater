@@ -272,7 +272,9 @@ public partial class MainWindow : Window
         SetBusy(true);
         try
         {
-            await _manager.InstallOrUpdateAsync(target, _release, ProgressReporter(), CancellationToken.None);
+            var selected = _release;
+            var progress = ProgressReporter();
+            await Task.Run(() => _manager.InstallOrUpdateAsync(target, selected, progress, CancellationToken.None));
             await RefreshLocalAsync();
             MessageBox.Show(this, $"Aseprite {_release.Version} was installed successfully.\n\nFolder: {target}",
                 "Installation complete", MessageBoxButton.OK, MessageBoxImage.Information);
