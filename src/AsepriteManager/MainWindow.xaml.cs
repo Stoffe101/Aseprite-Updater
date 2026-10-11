@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 
 namespace AsepriteManager;
@@ -12,6 +13,8 @@ namespace AsepriteManager;
 public partial class MainWindow : Window
 {
     private readonly ManagerService _manager = new();
+    private readonly ThemeManager _themeManager;
+    private IReadOnlyDictionary<string, bool> _availableThemeUpdates = new Dictionary<string, bool>();
     private ReleaseInfo? _release;
     private IReadOnlyList<ReleaseInfo> _releases = Array.Empty<ReleaseInfo>();
     private DependencyReport? _dependencies;
@@ -25,6 +28,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _themeManager = new ThemeManager(_manager.Log);
+        ThemePicker.ItemsSource = ThemeCatalog.Curated;
+        ThemePicker.SelectedIndex = 0;
         _manager.Logged += line => _pendingLog.Enqueue(line);
         _logTimer.Tick += (_, _) =>
         {
@@ -62,12 +68,24 @@ public partial class MainWindow : Window
         InstallPath.IsEnabled = !busy;
         BrowseButton.IsEnabled = !busy;
         VersionPicker.IsEnabled = !busy && _releases.Count > 0;
+        ThemePicker.IsEnabled = !busy;
+        InstallThemeButton.IsEnabled = !busy;
+        CheckThemesButton.IsEnabled = !busy;
+        UpdateThemesButton.IsEnabled = !busy && ThemeCatalog.Curated.Any(_themeManager.IsInstalled);
         RefreshButtons();
     }
 
     private void RefreshButtons()
     {
         CheckButton.IsEnabled = !_busy;
+        var stable = _releases.FirstOrDefault(r => r.IsLatest);
+        var updateAvailable = stable != null && _installedVersion != null &&
+            VersionOrder.Compare(_installedVersion, stable.Version) < 0;
+        UpdateAsepriteButton.IsEnabled = !_busy && updateAvailable;
+        AsepriteUpdateHint.Text = stable == null ? "Check GitHub to compare versions." :
+            _installedVersion == null ? "Aseprite isn't installed yet; choose a release to install." :
+            updateAvailable ? $"v{stable.Version} is available. Your current build will be backed up." :
+            "Your Aseprite is current, or you have a newer preview build.";
         DepsButton.IsEnabled = !_busy && (_dependencies is null || !_dependencies.Complete);
         LaunchButton.IsEnabled = !_busy && File.Exists(System.IO.Path.Combine(TargetPath, "aseprite.exe"));
         var canInstall = _release != null &&
@@ -92,6 +110,7 @@ public partial class MainWindow : Window
                 ? "Fresh installation available. Choose an installation folder."
                 : "Aseprite detected in the selected folder.";
             UpdateSelectedStatus();
+            ShowInstalledIcon(target);
         }
         catch (Exception ex)
         {
@@ -225,6 +244,167 @@ public partial class MainWindow : Window
             _manager.Log("GITHUB RELEASE ERROR: " + ex);
         }
         finally { SetBusy(false); }
+    }
+
+    private void ShowInstalledIcon(string installDir)
+    {
+        var candidates = new[]
+        {
+            Path.Combine(installDir, "aseprite.ico"),
+            Path.Combine(installDir, "data", "icons", "ase.ico")
+        };
+        var iconPath = candidates.FirstOrDefault(File.Exists);
+        if (iconPath == null) return;
+        try
+        {
+            var bitmap = BitmapFrame.Create(new Uri(iconPath, UriKind.Absolute),
+                BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+            OfficialLogo.Source = bitmap;
+            FallbackLogo.Visibility = Visibility.Collapsed;
+            Icon = bitmap;
+        }
+        catch (Exception ex) { _manager.Log("Could not load Aseprite's original icon: " + ex.Message); }
+    }
+
+    private void UpdateAseprite_Click(object sender, RoutedEventArgs e)
+    {
+        var stable = _releases.FirstOrDefault(r => r.IsLatest);
+        if (stable == null) return;
+        VersionPicker.SelectedItem = stable;
+        Install_Click(sender, e);
+    }
+
+    private void ThemePicker_SelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        UpdateThemeDetail();
+    }
+
+    private void UpdateThemeDetail()
+    {
+        if (ThemePicker.SelectedItem is not ThemeDefinition theme) return;
+        var installed = _themeManager.IsInstalled(theme);
+        var update = _availableThemeUpdates.TryGetValue(theme.Id, out var available) && available;
+        ThemeDetail.Text = $"{theme.Description}  •  {theme.Website}" +
+            (update ? "  •  UPDATE AVAILABLE" : installed ? "  •  Installed" : "  •  Not installed");
+        InstallThemeButton.Content = installed ? (update ? "Update selected theme" : "Reinstall selected theme") :
+            "Install selected theme";
+    }
+
+    private async void InstallTheme_Click(object sender, RoutedEventArgs e)
+    {
+        if (ThemePicker.SelectedItem is not ThemeDefinition theme) return;
+        if (MessageBox.Show(this,
+            $"Download {theme.Name} from:\n{theme.Website}\n\n" +
+            "The extension will be installed in your Aseprite user configuration folder. " +
+            "Your sprites and projects will not be touched. Aseprite must be closed. Continue?",
+            "Install community theme", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        SetBusy(true);
+        try
+        {
+            StatusTitle.Text = "Installing theme";
+            StatusDetail.Text = $"Downloading and verifying {theme.Name}...";
+            WorkProgress.Value = 15;
+            await Task.Run(() => _themeManager.InstallOrUpdateAsync(theme, CancellationToken.None));
+            _availableThemeUpdates = new Dictionary<string, bool>();
+            UpdateThemeDetail();
+            StatusTitle.Text = "Theme installed";
+            StatusDetail.Text = $"Installed {theme.Name}. Select it inside Aseprite → Edit → Preferences → Theme.";
+            WorkProgress.Value = 100;
+        }
+        catch (Exception ex)
+        {
+            StatusTitle.Text = "Theme installation failed";
+            StatusDetail.Text = ex.Message;
+            _manager.Log("THEME ERROR: " + ex);
+            MessageBox.Show(this, ex.Message, "Theme installation failed",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally { SetBusy(false); UpdateThemeDetail(); }
+    }
+
+    private async void CheckThemeUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        SetBusy(true);
+        try
+        {
+            StatusTitle.Text = "Checking theme repositories";
+            StatusDetail.Text = "Comparing installed managed themes with their official GitHub sources...";
+            WorkProgress.Value = 20;
+            _availableThemeUpdates = await _themeManager.CheckUpdatesAsync(CancellationToken.None);
+            var count = _availableThemeUpdates.Values.Count(x => x);
+            StatusTitle.Text = count == 0 ? "Themes are up to date" : $"{count} theme update(s) available";
+            StatusDetail.Text = count == 0 ? "Your installed managed themes are current." :
+                "Use Update installed themes to apply available updates; local edits will be protected.";
+            WorkProgress.Value = 100;
+        }
+        catch (Exception ex)
+        {
+            StatusTitle.Text = "Theme update check failed";
+            StatusDetail.Text = ex.Message;
+            _manager.Log("THEME UPDATE ERROR: " + ex);
+        }
+        finally { SetBusy(false); UpdateThemeDetail(); }
+    }
+
+    private async void UpdateThemes_Click(object sender, RoutedEventArgs e)
+    {
+        var installed = ThemeCatalog.Curated.Where(_themeManager.IsInstalled).ToArray();
+        if (installed.Length == 0) return;
+        if (MessageBox.Show(this, $"Check and update {installed.Length} installed managed themes?\n\n" +
+            "Updated themes are backed up. Locally edited themes will not be replaced. " +
+            "Close Aseprite before continuing.", "Update installed themes", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        SetBusy(true);
+        var failures = new List<string>();
+        try
+        {
+            for (int i = 0; i < installed.Length; i++)
+            {
+                var theme = installed[i];
+                StatusTitle.Text = "Updating theme library";
+                StatusDetail.Text = $"Checking {theme.Name} ({i + 1}/{installed.Length})...";
+                WorkProgress.Value = (i * 100.0) / installed.Length;
+                try { await Task.Run(() => _themeManager.InstallOrUpdateAsync(theme, CancellationToken.None)); }
+                catch (Exception ex)
+                {
+                    failures.Add(theme.Name + ": " + ex.Message);
+                    _manager.Log($"Theme update skipped for {theme.Name}: {ex}");
+                }
+            }
+            _availableThemeUpdates = new Dictionary<string, bool>();
+            StatusTitle.Text = failures.Count == 0 ? "Theme updates finished" : "Some themes need attention";
+            StatusDetail.Text = failures.Count == 0 ? "All managed themes were checked." :
+                string.Join(" | ", failures);
+            WorkProgress.Value = 100;
+        }
+        finally { SetBusy(false); UpdateThemeDetail(); }
+    }
+
+    private void OpenThemesFolder_Click(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(ThemeManager.ExtensionsDir);
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{ThemeManager.ExtensionsDir}\"") {
+            UseShellExecute = true
+        });
+    }
+
+    private void RepairIcon_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _manager.RepairAsepriteShortcut(TargetPath);
+            ShowInstalledIcon(TargetPath);
+            MessageBox.Show(this, "Aseprite's Start Menu shortcut has been updated.", "Icon repaired",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            _manager.Log("ICON REPAIR ERROR: " + ex);
+            MessageBox.Show(this, ex.Message, "Icon repair failed",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async void Dependencies_Click(object sender, RoutedEventArgs e)
