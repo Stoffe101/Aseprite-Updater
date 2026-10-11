@@ -151,12 +151,30 @@
         </Border>
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="32,28,32,32">
-                <TextBlock Text="ASEPRITE MANAGER   /   WINDOWS 11" Style="{StaticResource Label}"
-                           Foreground="#B6A7FD" Margin="0,0,0,8"/>
-                <TextBlock Text="Build, install, and switch versions."
-                           FontSize="29" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                <TextBlock Text="Official GitHub source releases. Your projects stay yours."
-                           Foreground="{StaticResource Secondary}" TextWrapping="Wrap" Margin="0,0,0,21"/>
+                <Grid Margin="0,0,0,21">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="58"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="46" Height="46" VerticalAlignment="Top" HorizontalAlignment="Left"
+                            CornerRadius="12" Background="#273254" BorderThickness="1"
+                            BorderBrush="#6E62B8">
+                        <Grid>
+                            <TextBlock x:Name="FallbackLogo" Text="A" FontWeight="Bold" FontSize="24"
+                                       Foreground="#B5A1FF" HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                            <Image x:Name="OfficialLogo" Stretch="Uniform" Margin="6"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="ASEPRITE MANAGER   /   WINDOWS 11" Style="{StaticResource Label}"
+                                   Foreground="#B6A7FD" Margin="0,0,0,5"/>
+                        <TextBlock Text="Install, update and customize Aseprite."
+                                   FontSize="27" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                        <TextBlock Text="Official source builds, curated themes and protected customizations."
+                                   Foreground="{StaticResource Secondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Grid>
 
                 <Grid Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
@@ -204,12 +222,20 @@
                                       SelectionChanged="VersionPicker_SelectionChanged"
                                       IsEnabled="False"
                                       ToolTip="Published versions from github.com/aseprite/aseprite/releases"/>
-                            <Button Grid.Column="2" x:Name="CheckButton" Content="Refresh releases"
+                            <Button Grid.Column="2" x:Name="CheckButton" Content="Check for updates"
                                     Click="Check_Click"/>
                         </Grid>
                         <TextBlock x:Name="VersionDetail" Foreground="#A4B4CF" Margin="0,11,0,0"
                                    TextWrapping="Wrap"
-                                   Text="Click Refresh releases to load available versions."/>
+                                   Text="Click Check for updates to load available versions."/>
+                        <WrapPanel Margin="0,14,0,0">
+                            <Button x:Name="UpdateAsepriteButton" Content="Update Aseprite to latest"
+                                    MinWidth="230" Margin="0,0,12,8" Background="#7357D4"
+                                    Click="UpdateAseprite_Click" IsEnabled="False"/>
+                            <TextBlock x:Name="AsepriteUpdateHint" Text="Check for updates to compare versions."
+                                       Foreground="#AAB9CE" TextWrapping="Wrap" MaxWidth="420"
+                                       VerticalAlignment="Center" Margin="0,0,0,8"/>
+                        </WrapPanel>
                     </StackPanel>
                 </Border>
 
@@ -248,6 +274,50 @@
                                        FontSize="12" TextWrapping="Wrap"/>
                         </WrapPanel>
                     </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource Surface}" CornerRadius="13"
+                        Padding="20" BorderBrush="#324158" BorderThickness="1" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Theme gallery" Style="{StaticResource SectionTitle}"/>
+                        <TextBlock Text="A hand-picked set of community themes. Install them to Aseprite's user profile without modifying the application or your sprites."
+                                   Foreground="{StaticResource Secondary}" TextWrapping="Wrap" Margin="0,6,0,12"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="182"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="ThemePicker" DisplayMemberPath="Name" Grid.Column="0"
+                                      SelectionChanged="ThemePicker_SelectionChanged"/>
+                            <Button x:Name="InstallThemeButton" Grid.Column="2" Content="Install selected theme"
+                                    Click="InstallTheme_Click" Background="#514D82"/>
+                        </Grid>
+                        <TextBlock x:Name="ThemeDetail" Foreground="#A4B4CF" Margin="0,10,0,0"
+                                   TextWrapping="Wrap" Text="Choose a theme to view its source and status."/>
+                        <WrapPanel Margin="0,13,0,0">
+                            <Button x:Name="CheckThemesButton" Content="Check theme updates"
+                                    Click="CheckThemeUpdates_Click" Margin="0,0,10,8"/>
+                            <Button x:Name="UpdateThemesButton" Content="Update installed themes"
+                                    Click="UpdateThemes_Click" Background="#393F6A"
+                                    Margin="0,0,10,8"/>
+                            <Button Content="Open themes folder" Click="OpenThemesFolder_Click"
+                                    Margin="0,0,0,8"/>
+                        </WrapPanel>
+                        <TextBlock Text="If a theme was edited manually, automatic updating stops rather than replacing your changes. Apply your theme in Aseprite → Edit → Preferences → Theme."
+                                   Foreground="#8199BA" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource Surface}" CornerRadius="13" Padding="16"
+                        BorderBrush="#324158" BorderThickness="1" Margin="0,0,0,16">
+                    <WrapPanel>
+                        <Button Content="Repair Aseprite shortcut / icon" Click="RepairIcon_Click"
+                                Margin="0,0,12,7" MinWidth="235"/>
+                        <TextBlock Text="Restore the official icon to the Windows Start Menu shortcut."
+                                   Foreground="#A2B0C9" TextWrapping="Wrap" VerticalAlignment="Center"
+                                   MaxWidth="455" Margin="0,0,0,7"/>
+                    </WrapPanel>
                 </Border>
 
                 <Border Background="#19243B" CornerRadius="13" BorderBrush="#505080"
