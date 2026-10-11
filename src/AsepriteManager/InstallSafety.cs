@@ -61,7 +61,7 @@ public static class InstallSafety
     {
         if (!Directory.Exists(oldInstall)) return;
         var oldData = Path.Combine(oldInstall, "data");
-        foreach (var folder in new[] { "extensions", "themes", "palettes" })
+        foreach (var folder in new[] { "extensions", "themes", "palettes", "scripts" })
             CopyOnlyMissing(Path.Combine(oldData, folder), Path.Combine(stage, "data", folder), log);
 
         // Many people keep work beside an executable. Never overwrite staged files,
@@ -70,11 +70,16 @@ public static class InstallSafety
         foreach (var file in Directory.EnumerateFiles(oldInstall, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(oldInstall, file);
-            if (relative.StartsWith("data" + Path.DirectorySeparatorChar,
-                    StringComparison.OrdinalIgnoreCase)) continue;
+            var inDataFolder = relative.StartsWith("data" + Path.DirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase);
             if (relative.StartsWith(".git" + Path.DirectorySeparatorChar,
                     StringComparison.OrdinalIgnoreCase)) continue;
             var ext = Path.GetExtension(file);
+            // Built-in assets under data/ are version-specific. Only carry
+            // actual Aseprite project files from there; all originals remain
+            // available in the retained full backup.
+            if (inDataFolder && ext is not (".ase" or ".aseprite" or ".psd"))
+                continue;
             if (!SpriteExtensions.Contains(ext) &&
                 !string.Equals(Path.GetFileName(file), "aseprite.ini",
                     StringComparison.OrdinalIgnoreCase))
