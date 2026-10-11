@@ -43,6 +43,10 @@ public partial class LibraryWindow : Window
         GalleryList.IsEnabled = !value;
         PaletteSearch.IsEnabled = !value;
         InstallPaletteButton.IsEnabled = !value && GalleryList.SelectedItem != null;
+        RemoveGalleryPaletteButton.IsEnabled = !value &&
+            GalleryList.SelectedItem is PalettePreset palette && PaletteGallery.IsInstalled(palette);
+        UpdateGalleryPalettesButton.IsEnabled = !value &&
+            PaletteGallery.Presets.Any(PaletteGallery.IsInstalled);
         PreviewPaletteButton.IsEnabled = !value && GalleryList.SelectedItem != null;
         InstallOverlayButton.IsEnabled = !value;
         RemoveOverlayButton.IsEnabled = !value && TileIndexOverlayManager.Installed;
@@ -385,6 +389,8 @@ public partial class LibraryWindow : Window
             "Managed copy installed. Existing Aseprite-bundled presets are unaffected." :
             "Available to preview or install as an optional managed copy.";
         PaletteSwatches.Children.Clear();
+        RemoveGalleryPaletteButton.IsEnabled = !_busy && PaletteGallery.IsInstalled(preset);
+        InstallPaletteButton.Content = PaletteGallery.IsInstalled(preset) ? "Reinstall / update" : "Install preset";
     }
     private async void PreviewPalette_Click(object sender, RoutedEventArgs e)
     {
@@ -443,6 +449,63 @@ public partial class LibraryWindow : Window
         }
         finally { SetBusy(false); }
     }
+    private void RemoveGalleryPalette_Click(object sender, RoutedEventArgs e)
+    {
+        if (GalleryList.SelectedItem is not PalettePreset preset) return;
+        if (MessageBox.Show(this,
+            $"Uninstall your managed copy of {preset.Name}?\n\n" +
+            "Aseprite's built-in palettes will not be affected. " +
+            "Your managed copy will be backed up rather than permanently deleted.",
+            "Uninstall managed palette", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        try
+        {
+            PaletteGallery.Uninstall(preset, _service.Log);
+            SetStatus($"Managed palette {preset.Name} removed with backup.");
+        }
+        catch (Exception ex) { SetStatus("Palette removal blocked: " + ex.Message); }
+        RefreshGalleryDetails();
+    }
+    private async void UpdateGalleryPalettes_Click(object sender, RoutedEventArgs e)
+    {
+        var installed = PaletteGallery.Presets.Where(PaletteGallery.IsInstalled).ToArray();
+        if (installed.Length == 0)
+        {
+            SetStatus("No managed palettes installed.");
+            return;
+        }
+        if (MessageBox.Show(this,
+            $"Check {installed.Length} installed managed palette(s) for updates?\n\n" +
+            "Updates only replace unmodified managed copies, after saving backups. " +
+            "Aseprite must be closed.",
+            "Update managed palettes", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        SetBusy(true);
+        int updated = 0;
+        var errors = new List<string>();
+        try
+        {
+            foreach (var preset in installed)
+            {
+                SetStatus("Checking palette " + preset.Name + "...");
+                try
+                {
+                    var (revision, _) = await PaletteGallery.DownloadAsync(preset);
+                    if (string.Equals(PaletteGallery.InstalledRevision(preset), revision,
+                        StringComparison.OrdinalIgnoreCase)) continue;
+                    await Task.Run(() => PaletteGallery.InstallAsync(preset, _service.Log,
+                        CancellationToken.None));
+                    updated++;
+                }
+                catch (Exception ex) { errors.Add(preset.Name + ": " + ex.Message); }
+            }
+            SetStatus(errors.Count == 0
+                ? $"Palette update check complete. {updated} updated, {installed.Length - updated} already current."
+                : $"{updated} updated; some palettes were skipped: " + string.Join(" | ", errors));
+        }
+        finally { SetBusy(false); RefreshGalleryDetails(); }
+    }
+
     private void OpenPaletteSource_Click(object sender, RoutedEventArgs e)
     {
         if (GalleryList.SelectedItem is PalettePreset preset)
