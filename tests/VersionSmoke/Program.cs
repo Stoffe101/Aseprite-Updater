@@ -75,3 +75,43 @@ finally
 {
     try { Directory.Delete(scratch, recursive: true); } catch { }
 }
+
+// Regression test: a Windows batch file under a folder with spaces must
+// execute correctly, and its exit code must propagate to the manager.
+if (OperatingSystem.IsWindows())
+{
+    var rootWithSpaces = Path.Combine(Path.GetTempPath(),
+        "Aseprite Manager command with spaces " + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(rootWithSpaces);
+    try
+    {
+        var batch = Path.Combine(rootWithSpaces, WindowsBatchLauncher.ScriptName);
+        foreach (var expectedCode in new[] { 0, 27 })
+        {
+            File.WriteAllLines(batch, new[] {
+                "@echo off",
+                "echo BUILD_HELPER_STARTED",
+                $"exit /b {expectedCode}"
+            });
+            using var p = new System.Diagnostics.Process();
+            p.StartInfo = new System.Diagnostics.ProcessStartInfo("cmd.exe")
+            {
+                WorkingDirectory = rootWithSpaces,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            foreach (var arg in WindowsBatchLauncher.Arguments())
+                p.StartInfo.ArgumentList.Add(arg);
+            if (!p.Start()) throw new Exception("Could not start cmd.exe.");
+            var stdout = p.StandardOutput.ReadToEnd();
+            var stderr = p.StandardError.ReadToEnd();
+            if (!p.WaitForExit(20000)) { p.Kill(entireProcessTree: true); throw new Exception("cmd.exe hung."); }
+            if (p.ExitCode != expectedCode || !stdout.Contains("BUILD_HELPER_STARTED"))
+                throw new Exception($"Windows batch launch failed (expected {expectedCode}, got {p.ExitCode}): {stdout} {stderr}");
+            Console.WriteLine($"PASS: relative batch in spaced path, exit code {expectedCode}");
+        }
+    }
+    finally { try { Directory.Delete(rootWithSpaces, true); } catch { } }
+}
