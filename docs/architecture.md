@@ -4,14 +4,14 @@
 
 1. A usable, responsive Windows 11 GUI on both computers with and without Aseprite.
 2. A fresh source installation from a device without Git, CMake, Ninja, Visual Studio or Skia.
-3. Reliable detection of \`x.y.z-dev\` as equivalent to the matching stable release.
+3. Reliable detection of `x.y.z-dev` as equivalent to the matching stable release.
 4. Offline-safe UI: network calls happen only when Check for updates is clicked.
 5. Source builds in isolated work directories; no replacement until executable version verified.
 6. Rollback on a failed final directory swap, with retained backups on success.
 
 ## Flow
 
-\`\`\`
+```
 Launch Manager
   -> scan selected install folder and prerequisites (no network)
   -> Check for updates -> official stable GitHub releases API
@@ -25,9 +25,9 @@ Launch Manager
       -> rename old install to a retained backup
       -> rename verified staging folder to install destination
       -> restore backup if second rename fails
-\`\`\`
+```
 
-The program never ships upstream compiled Aseprite binaries. Upstream \`build.cmd\` is not used because it ends in \`pause\`.
+The program never ships upstream compiled Aseprite binaries. Upstream `build.cmd` is not used because it ends in `pause`.
 
 ## Known limitations before public release
 
@@ -44,7 +44,7 @@ The program never ships upstream compiled Aseprite binaries. Upstream \`build.cm
 | Scenario | Status |
 |---|---|
 | Windows CI builds native WPF EXE and Inno installer | CI configured, result pending |
-| Stable version equal to source \`-dev\` | Automated unit smoke test |
+| Stable version equal to source `-dev` | Automated unit smoke test |
 | Offline check surfaces helpful error | Manual test pending |
 | Fresh Windows 11 VM, missing all dependencies | Manual test pending |
 | Fresh install through GUI | Manual test pending |
