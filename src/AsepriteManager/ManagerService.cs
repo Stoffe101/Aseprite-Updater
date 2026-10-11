@@ -7,19 +7,18 @@ using System.Text.RegularExpressions;
 
 namespace AsepriteManager;
 
-public sealed record ReleaseInfo(string Tag, string Version);
 public sealed record WorkStatus(int Percent, string Stage, string Detail);
-public sealed record DependencyReport(string? Git, string? CMake, string? Ninja, string? VsDevCmd)
+public sealed record DependencyReport(string? Git, string? CMake, string? Ninja, string? VsDevCmd, bool VcRuntime)
 {
-    public bool Complete => Git != null && CMake != null && Ninja != null && VsDevCmd != null;
+    public bool Complete => Git != null && CMake != null && Ninja != null && VsDevCmd != null && VcRuntime;
     public string Summary =>
-        $"Git: {Label(Git)}   •   CMake: {Label(CMake)}   •   Ninja: {Label(Ninja)}   •   VS 2022 C++: {Label(VsDevCmd)}";
+        $"Git/Bash: {Label(Git)}   •   CMake: {Label(CMake)}   •   Ninja: {Label(Ninja)}   •   VS 2022 C++ and SDK: {Label(VsDevCmd)}   •   VC++ Runtime: {(VcRuntime ? "Ready" : "MISSING")}";
     private static string Label(string? p) => p is null ? "MISSING" : "Ready";
 }
 
 public static class VersionOrder
 {
-    private static readonly Regex Pattern = new(@"(?<![0-9])v?(?<number>\d+(?:\.\d+){2,3})(?<suffix>-[A-Za-z][0-9A-Za-z.-]*)?",
+    private static readonly Regex Pattern = new(@"(?<![0-9])v?(?<number>\d+(?:\.\d+){1,3})(?<suffix>-[A-Za-z][0-9A-Za-z.-]*)?",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public static string? Parse(string value)
@@ -81,45 +80,44 @@ public sealed class ManagerService
         Logged?.Invoke(line);
     }
 
-    public async Task<ReleaseInfo> GetLatestAsync(CancellationToken ct = default)
+    private readonly ReleaseCatalog _catalog = new();
+
+    public async Task<IReadOnlyList<ReleaseInfo>> GetReleasesAsync(CancellationToken ct = default)
     {
-        using var response = await Client.GetAsync("https://api.github.com/repos/aseprite/aseprite/releases/latest", ct);
-        response.EnsureSuccessStatusCode();
-        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-        var root = json.RootElement;
-        if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
-            throw new InvalidDataException("Expected a stable release from GitHub.");
-        var tag = root.GetProperty("tag_name").GetString() ?? "";
-        if (!Regex.IsMatch(tag, @"^v\d+\.\d+\.\d+(?:\.\d+)?$"))
-            throw new InvalidDataException("GitHub returned an unexpected stable release tag.");
-        Log($"Latest stable GitHub release: {tag}");
-        return new ReleaseInfo(tag, tag.TrimStart('v'));
+        var releases = await _catalog.GetPublishedReleasesAsync(ct);
+        Log($"Found {releases.Count} published Aseprite GitHub releases.");
+        return releases;
     }
 
     public DependencyReport ScanDependencies()
     {
         RefreshEnvironmentPath();
+        var git = FindExe("git.exe", @"C:\Program Files\Git\cmd\git.exe");
+        if (git != null && GetGitBash(git) == null) git = null;
         return new DependencyReport(
-            FindExe("git.exe", @"C:\Program Files\Git\cmd\git.exe"),
+            git,
             FindExe("cmake.exe", @"C:\Program Files\CMake\bin\cmake.exe"),
             FindExe("ninja.exe"),
-            GetVsDevCmd());
+            HasWindowsSdk() ? GetVsDevCmd() : null,
+            HasVcRuntime());
     }
 
-    public async Task<string?> ReadInstalledVersionAsync(string installDir, CancellationToken ct = default)
+    public async Task<string?> ReadInstalledVersionAsync(string installDir, CancellationToken ct = default, bool allowMarkerFallback = true)
     {
         var exe = Path.Combine(installDir, "aseprite.exe");
         if (!File.Exists(exe)) return null;
         try
         {
-            var result = await RunAsync(exe, new[] { "--version" }, installDir, ct, logOutput: false);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(15));
+            var result = await RunAsync(exe, new[] { "--version" }, installDir, timeout.Token, logOutput: false);
             return VersionOrder.Parse(result);
         }
         catch (Exception ex)
         {
             Log("Version probe failed: " + ex.Message);
             var marker = Path.Combine(installDir, "aseprite-manager.json");
-            if (File.Exists(marker))
+            if (allowMarkerFallback && File.Exists(marker))
             {
                 try
                 {
@@ -136,62 +134,92 @@ public sealed class ManagerService
     {
         var winget = FindExe("winget.exe");
         if (winget is null)
-            throw new InvalidOperationException("Windows Package Manager (winget) is missing. Install 'App Installer' from Microsoft, then retry.");
-        var missing = new List<(string Name, string Id, string? Override)>();
-        if (deps.Git == null) missing.Add(("Git", "Git.Git", null));
-        if (deps.CMake == null) missing.Add(("CMake", "Kitware.CMake", null));
-        if (deps.Ninja == null) missing.Add(("Ninja", "Ninja-build.Ninja", null));
-        if (deps.VsDevCmd == null)
-            missing.Add(("Visual Studio 2022 C++ Build Tools", "Microsoft.VisualStudio.2022.BuildTools",
-                "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --add Microsoft.VisualStudio.Component.Windows11SDK.26100"));
+            throw new InvalidOperationException("Windows Package Manager is not available. Install Microsoft's 'App Installer' first, then retry.");
 
-        for (int i = 0; i < missing.Count; i++)
+        var basic = new List<(string Name, string Id)>();
+        if (deps.Git == null) basic.Add(("Git for Windows (includes Git Bash)", "Git.Git"));
+        if (deps.CMake == null) basic.Add(("CMake", "Kitware.CMake"));
+        if (deps.Ninja == null) basic.Add(("Ninja", "Ninja-build.Ninja"));
+        if (!deps.VcRuntime) basic.Add(("Microsoft Visual C++ x64 runtime", "Microsoft.VCRedist.2015+.x64"));
+        var count = basic.Count + (deps.VsDevCmd == null ? 1 : 0);
+        var index = 0;
+
+        foreach (var (name, id) in basic)
         {
             ct.ThrowIfCancellationRequested();
-            var tool = missing[i];
-            progress.Report(new WorkStatus((i * 100) / missing.Count, "Installing prerequisites", tool.Name + " (UAC may ask for approval)"));
-            Log($"Installing {tool.Name} with Windows Package Manager...");
-            var args = new List<string> { "install", "--exact", "--id", tool.Id, "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity" };
-            if (tool.Override != null)
-            {
-                args.Add("--override");
-                args.Add(tool.Override);
-            }
-            else args.Add("--silent");
-            await RunAsync(winget, args, DataRoot, ct);
+            progress.Report(new WorkStatus(100 * index++ / Math.Max(1, count),
+                "Installing prerequisites", name + " (Windows may request approval)"));
+            Log($"Installing {name} ({id}) from the official winget catalog...");
+            await RunAsync(winget, new[] { "install", "--exact", "--id", id,
+                "--source", "winget", "--accept-package-agreements",
+                "--accept-source-agreements", "--disable-interactivity", "--silent" }, DataRoot, ct);
             RefreshEnvironmentPath();
         }
-        progress.Report(new WorkStatus(100, "Prerequisites", "Finished. Rechecking installed tools..."));
+
+        if (deps.VsDevCmd == null)
+        {
+            progress.Report(new WorkStatus(100 * index / Math.Max(1, count),
+                "Installing Microsoft C++ tools",
+                "Installing or modifying Visual Studio 2022 C++ Build Tools and the Windows SDK..."));
+            // Existing Community/Professional/BuildTools instances must be MODIFIED.
+            // 'winget install' on an already installed instance cannot add the missing workload.
+            var existingInstall = GetExistingVisualStudioInstallPath();
+            var vsSetup = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.ProgramFilesX86),
+                @"Microsoft Visual Studio\Installer\setup.exe");
+            var components = new[] {
+                "--add", "Microsoft.VisualStudio.Workload.VCTools",
+                "--add", "Microsoft.VisualStudio.Component.Windows11SDK.26100",
+                "--includeRecommended", "--norestart"
+            };
+            if (existingInstall != null && File.Exists(vsSetup))
+            {
+                Log($"Modifying existing Visual Studio 2022 installation at: {existingInstall}");
+                await RunAsync(vsSetup, new[] { "modify", "--installPath", existingInstall,
+                    "--passive" }.Concat(components), DataRoot, ct);
+            }
+            else
+            {
+                const string options = "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.Windows11SDK.26100 --includeRecommended";
+                Log("Installing Visual Studio 2022 Build Tools and the required Windows SDK.");
+                await RunAsync(winget, new[] { "install", "--exact", "--id",
+                    "Microsoft.VisualStudio.2022.BuildTools", "--source", "winget",
+                    "--accept-package-agreements", "--accept-source-agreements",
+                    "--override", options }, DataRoot, ct);
+            }
+        }
+        RefreshEnvironmentPath();
+        progress.Report(new WorkStatus(100, "Prerequisites",
+            "Finished. Checking that every required compiler tool and SDK is present..."));
+        var check = ScanDependencies();
+        if (!check.Complete)
+            throw new InvalidOperationException($"Some required tools are still missing: {check.Summary}. " +
+                "A reboot or completing the Visual Studio Installer may be required.");
     }
 
     public async Task InstallOrUpdateAsync(string requestedDir, ReleaseInfo release, IProgress<WorkStatus> progress, CancellationToken ct)
     {
         var installDir = Path.GetFullPath(requestedDir.Trim());
-        if (Path.GetPathRoot(installDir)?.TrimEnd('\\') == installDir.TrimEnd('\\'))
-            throw new InvalidOperationException("Choose an application folder, not a drive root.");
+        InstallSafety.ValidateDestination(installDir);
         if (Process.GetProcessesByName("aseprite").Length > 0)
             throw new InvalidOperationException("Close Aseprite before installing or updating.");
-        if (Directory.Exists(installDir) && !File.Exists(Path.Combine(installDir, "aseprite.exe")) &&
-            Directory.EnumerateFileSystemEntries(installDir).Any())
-            throw new InvalidOperationException("Selected destination is not empty and doesn't contain aseprite.exe.");
-
         var oldVersion = await ReadInstalledVersionAsync(installDir, ct);
-        if (oldVersion != null && VersionOrder.Compare(oldVersion, release.Version) >= 0)
-            throw new InvalidOperationException($"Already up to date ({oldVersion}).");
+        if (oldVersion != null && VersionOrder.Compare(oldVersion, release.Version) == 0)
+            throw new InvalidOperationException($"Selected version is already installed ({oldVersion}).");
+        if (File.Exists(Path.Combine(installDir, "aseprite.exe")) && oldVersion == null)
+            throw new InvalidOperationException("The existing Aseprite version could not be identified. No files were changed.");
 
         var deps = ScanDependencies();
         if (!deps.Complete)
             throw new InvalidOperationException("Build prerequisites are missing. Click 'Install missing tools' first.");
-        var gitBash = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(deps.Git!)!, "..", "bin", "bash.exe"));
-        if (!File.Exists(gitBash))
-            throw new FileNotFoundException("Git Bash was not found alongside Git for Windows.", gitBash);
+        var gitBash = GetGitBash(deps.Git!) ??
+            throw new FileNotFoundException("Git Bash is required (install Git for Windows).");
 
         // Work remains isolated until compilation and version verification both succeed.
         Directory.CreateDirectory(DataRoot);
         var session = Path.Combine(DataRoot, "work", Guid.NewGuid().ToString("N"));
         var source = Path.Combine(session, "source");
         var stage = Path.Combine(Path.GetDirectoryName(installDir)!, ".aseprite-staging-" + Guid.NewGuid().ToString("N"));
-        string? backup = null;
         bool swapped = false;
         Directory.CreateDirectory(session);
         try
@@ -232,41 +260,29 @@ public sealed class ManagerService
             progress.Report(new WorkStatus(80, "Staging", "Preparing the verified build without touching the current installation..."));
             CopyDirectory(built, stage);
             if (Directory.Exists(installDir))
-            {
-                CopyMissing(Path.Combine(installDir, "data", "extensions"), Path.Combine(stage, "data", "extensions"));
-                CopyMissing(Path.Combine(installDir, "data", "themes"), Path.Combine(stage, "data", "themes"));
-            }
+                InstallSafety.PreserveUserContent(installDir, stage, Log);
             var marker = JsonSerializer.Serialize(new { version = release.Version, release = release.Tag,
                 installedAt = DateTimeOffset.UtcNow }, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(Path.Combine(stage, "aseprite-manager.json"), marker, ct);
 
-            // Cancellation is checked BEFORE the swap; no cancellation mid-transaction.
+            // Cancellation is checked BEFORE the swap, never during the rename transaction.
             ct.ThrowIfCancellationRequested();
             if (Process.GetProcessesByName("aseprite").Length > 0)
                 throw new InvalidOperationException("Aseprite was started during the build. Close it and retry.");
-            progress.Report(new WorkStatus(92, "Installing", "Swapping the verified build into place..."));
-            if (Directory.Exists(installDir))
+            progress.Report(new WorkStatus(92, "Installing", "Swapping the verified build while retaining the previous version..."));
+            InstallSafety.SwapVerifiedInstallation(stage, installDir, () =>
             {
-                backup = Path.Combine(Path.GetDirectoryName(installDir)!, 
-                    Path.GetFileName(installDir) + ".backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
-                Directory.Move(installDir, backup);
-            }
-            try
-            {
-                Directory.Move(stage, installDir);
-                swapped = true;
-            }
-            catch
-            {
-                if (backup != null && Directory.Exists(backup) && !Directory.Exists(installDir))
-                    Directory.Move(backup, installDir);
-                throw;
-            }
-            progress.Report(new WorkStatus(100, "Complete", $"Aseprite {release.Version} installed successfully." +
-                (backup is null ? "" : " Previous version retained as a backup.")));
+                // Verify the executable and version again after the final rename.
+                var post = ReadInstalledVersionAsync(installDir, CancellationToken.None, allowMarkerFallback: false).GetAwaiter().GetResult();
+                return post != null && VersionOrder.Compare(post, release.Version) == 0;
+            }, Log);
+            swapped = true;
+            progress.Report(new WorkStatus(100, "Complete",
+                $"Aseprite {release.Version} installed. Previous application folder is retained as a full backup."));
+
             try { CreateStartMenuShortcut(installDir); }
             catch (Exception ex) { Log("Start Menu shortcut could not be created: " + ex.Message); }
-            Log($"SUCCESS: {release.Tag} => {installDir}; backup: {backup ?? "none"}");
+            Log($"SUCCESS: {release.Tag} => {installDir}. Any prior installation is retained as a full backup.");
         }
         catch (Exception ex)
         {
@@ -341,11 +357,17 @@ public sealed class ManagerService
         using var process = new Process { StartInfo = psi };
         if (!process.Start()) throw new InvalidOperationException("Could not start: " + executable);
         var output = new StringBuilder();
+        const int maxResultChars = 16000;
         async Task ReadAsync(StreamReader reader)
         {
             while (await reader.ReadLineAsync(ct) is { } line)
             {
-                lock (output) output.AppendLine(line);
+                lock (output)
+                {
+                    output.AppendLine(line);
+                    if (output.Length > maxResultChars * 2)
+                        output.Remove(0, output.Length - maxResultChars);
+                }
                 if (logOutput) Log(line);
             }
         }
@@ -362,7 +384,7 @@ public sealed class ManagerService
             throw;
         }
         if (process.ExitCode != 0)
-            throw new InvalidOperationException($"{Path.GetFileName(executable)} exited with code {process.ExitCode}. Consult the activity log.");
+            throw new InvalidOperationException($"{Path.GetFileName(executable)} exited with code {process.ExitCode}. Recent output: {output.ToString()[Math.Max(0, output.Length - 3000)..]}. See activity log.");
         return output.ToString();
     }
 
@@ -377,6 +399,67 @@ public sealed class ManagerService
         return null;
     }
 
+    private static string? GetGitBash(string gitExe)
+    {
+        var gitCmdDir = Path.GetDirectoryName(gitExe)!;
+        var guesses = new[]
+        {
+            Path.GetFullPath(Path.Combine(gitCmdDir, "..", "bin", "bash.exe")),
+            Path.Combine(gitCmdDir, "bash.exe"),
+            @"C:\Program Files\Git\bin\bash.exe",
+            @"C:\Program Files (x86)\Git\bin\bash.exe"
+        };
+        return guesses.FirstOrDefault(File.Exists);
+    }
+
+    private static bool HasVcRuntime()
+    {
+        try
+        {
+            const string key = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64";
+            var installed = Microsoft.Win32.Registry.GetValue(key, "Installed", 0);
+            return installed is int status && status == 1;
+        }
+        catch { return false; }
+    }
+
+    private static bool HasWindowsSdk()
+    {
+        var kitRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            @"Windows Kits\10\Include");
+        if (!Directory.Exists(kitRoot)) return false;
+        return Directory.EnumerateDirectories(kitRoot).Any(dir =>
+            Path.GetFileName(dir).StartsWith("10.0.26100.", StringComparison.OrdinalIgnoreCase) &&
+            Directory.Exists(Path.Combine(dir, "um")) &&
+            Directory.Exists(Path.Combine(dir, "ucrt")));
+    }
+
+    private static string? GetExistingVisualStudioInstallPath()
+    {
+        var vswhere = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            @"Microsoft Visual Studio\Installer\vswhere.exe");
+        if (!File.Exists(vswhere)) return null;
+        try
+        {
+            using var p = new Process();
+            p.StartInfo = new ProcessStartInfo(vswhere)
+            {
+                UseShellExecute = false, RedirectStandardOutput = true,
+                CreateNoWindow = true
+            };
+            foreach (var arg in new[] { "-latest", "-version", "[17.0,18.0)",
+                "-products", "*", "-property", "installationPath" })
+                p.StartInfo.ArgumentList.Add(arg);
+            p.Start();
+            var output = p.StandardOutput.ReadToEnd().Trim();
+            if (!p.WaitForExit(10000)) { p.Kill(); return null; }
+            return p.ExitCode == 0 && Directory.Exists(output) ? output : null;
+        }
+        catch { return null; }
+    }
+
     private static string? GetVsDevCmd()
     {
         var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
@@ -389,7 +472,7 @@ public sealed class ManagerService
                 UseShellExecute = false, RedirectStandardOutput = true,
                 CreateNoWindow = true
             };
-            foreach (var arg in new[] { "-latest", "-products", "*", "-requires",
+            foreach (var arg in new[] { "-latest", "-version", "[17.0,18.0)", "-products", "*", "-requires",
                 "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-find",
                 @"VC\Auxiliary\Build\vcvars64.bat" }) psi.ArgumentList.Add(arg);
             using var p = Process.Start(psi);

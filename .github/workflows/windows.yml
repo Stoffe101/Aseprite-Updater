@@ -25,6 +25,11 @@ jobs:
         run: dotnet restore src/AsepriteManager/AsepriteManager.csproj
       - name: Build WPF app
         run: dotnet build src/AsepriteManager/AsepriteManager.csproj -c Release --no-restore
+      - name: Verify WPF layout at multiple sizes
+        shell: pwsh
+        run: |
+          dotnet run --project src/AsepriteManager/AsepriteManager.csproj --configuration Release --no-build -- --layout-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Publish self-contained Windows app
         run: dotnet publish src/AsepriteManager/AsepriteManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
       - name: Install Inno Setup
@@ -43,4 +48,5 @@ jobs:
           path: |
             dist/*.exe
             publish/AsepriteManager.exe
+            ui-snapshots/*.png
           if-no-files-found: error

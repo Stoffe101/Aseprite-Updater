@@ -7,7 +7,8 @@
 3. Reliable detection of `x.y.z-dev` as equivalent to the matching stable release.
 4. Offline-safe UI: network calls happen only when Check for updates is clicked.
 5. Source builds in isolated work directories; no replacement until executable version verified.
-6. Rollback on a failed final directory swap, with retained backups on success.
+6. All published GitHub release versions, including prereleases, can be selected for an attempted source build; older tags are not necessarily compiler-compatible.
+7. Rollback on a failed final directory swap and failed post-install verification, with full retained backups on success.
 
 ## Flow
 
@@ -36,7 +37,8 @@ The program never ships upstream compiled Aseprite binaries. Upstream `build.cmd
 - Large downloads, Skia, compilers and available disk space can cause environmental build failures.
 - Existing installations are adopted only by explicitly choosing their folder.
 - Backups currently stay on disk until manually removed.
-- Automatic scheduled checks, automatic updater-of-updater, prerelease channels and macOS are future milestones.
+- Automatic scheduled checks, automatic updater-of-updater and macOS are future milestones.
+- The UI supports prerelease selection, but older upstream tags may require build processes not yet implemented.
 - Smoke tests currently cover version comparison only; add integration tests for failed clone/build/verification and swap failures.
 
 ## Test matrix
@@ -45,6 +47,9 @@ The program never ships upstream compiled Aseprite binaries. Upstream `build.cmd
 |---|---|
 | Windows CI builds native WPF EXE and Inno installer | CI configured, result pending |
 | Stable version equal to source `-dev` | Automated unit smoke test |
+| Theme and sprite files in installation | Automated temporary-folder smoke test |
+| Directory swap rollback on failed verification | Automated temporary-folder smoke test |
+| Three GUI layout sizes rendered as PNG | Windows CI smoke test |
 | Offline check surfaces helpful error | Manual test pending |
 | Fresh Windows 11 VM, missing all dependencies | Manual test pending |
 | Fresh install through GUI | Manual test pending |

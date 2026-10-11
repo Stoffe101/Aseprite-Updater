@@ -1,141 +1,282 @@
 <Window x:Class="AsepriteManager.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Aseprite Manager" Width="1060" Height="850" MinWidth="860" MinHeight="660"
-        WindowStartupLocation="CenterScreen" Background="#0C101C" Foreground="#EBEFFA"
-        FontFamily="Segoe UI" FontSize="14">
+        Title="Aseprite Manager" Width="1040" Height="875" MinWidth="850" MinHeight="660"
+        WindowStartupLocation="CenterScreen" Background="#0C1220" Foreground="#EEF1FC"
+        FontFamily="Segoe UI" FontSize="14" UseLayoutRounding="True" SnapsToDevicePixels="True">
     <Window.Resources>
-        <SolidColorBrush x:Key="Card" Color="#171E2E"/>
+        <SolidColorBrush x:Key="Surface" Color="#172137"/>
+        <SolidColorBrush x:Key="Secondary" Color="#ACB9CE"/>
         <Style TargetType="Button">
             <Setter Property="Height" Value="42"/>
-            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="MinWidth" Value="130"/>
+            <Setter Property="Padding" Value="16,7"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Background" Value="#2C344A"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Background" Value="#2D3D57"/>
+            <Setter Property="Foreground" Value="#F7F8FF"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="9"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                BorderBrush="{TemplateBinding BorderBrush}">
-                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="9">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.83"/></Trigger>
-                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.36"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.38"/>
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="Section" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#F4F6FE"/>
-            <Setter Property="FontSize" Value="17"/>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#0E1729"/>
+            <Setter Property="Foreground" Value="#F6F7FE"/>
+            <Setter Property="CaretBrush" Value="#D6C3FF"/>
+            <Setter Property="BorderBrush" Value="#364762"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="11,9"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="#F4F5FE"/>
+            <Setter Property="Background" Value="#24324B"/>
+            <Setter Property="BorderBrush" Value="#556987"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="MaxDropDownHeight" Value="350"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="SelectBorder" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8">
+                                <Grid>
+                                    <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      VerticalAlignment="Center" Margin="14,0,32,0"
+                                                      IsHitTestVisible="False"/>
+                                    <Path Data="M 0 0 L 5 5 L 10 0" Stroke="#B5C3D9"
+                                          StrokeThickness="1.8" Width="11" Height="6"
+                                          HorizontalAlignment="Right" VerticalAlignment="Center"
+                                          Margin="0,0,15,0"/>
+                                </Grid>
+                            </Border>
+                            <ToggleButton x:Name="DropDownToggle" Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                                   PopupAnimation="Fade"
+                                   Width="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Border Background="#202D43" BorderBrush="#526583"
+                                        BorderThickness="1" CornerRadius="8" Margin="0,3,0,0">
+                                    <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                                  CanContentScroll="True">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="SelectBorder" Property="Opacity" Value="0.65"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="SelectBorder" Property="BorderBrush" Value="#A393FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#F1F4FC"/>
+            <Setter Property="Background" Value="#202D43"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#43557D"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#574C87"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#AFC0DD"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#101728"/>
-            <Setter Property="Foreground" Value="#EFF2FA"/>
-            <Setter Property="CaretBrush" Value="#E4C7FF"/>
-            <Setter Property="BorderBrush" Value="#374159"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="12,10"/>
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#F4F6FC"/>
         </Style>
     </Window.Resources>
-    <Grid>
+    <Grid Background="#0C1220">
         <Grid.RowDefinitions>
-            <RowDefinition Height="7"/>
+            <RowDefinition Height="5"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Border Grid.Row="0">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#7A5CF4" Offset="0"/>
-                    <GradientStop Color="#49C5D4" Offset="1"/>
+                    <GradientStop Color="#7A5DEF" Offset="0"/>
+                    <GradientStop Color="#58BBD3" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
         </Border>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="38,30,38,36">
-                <Grid Margin="0,0,0,24">
-                    <StackPanel>
-                        <TextBlock Text="ASEPRITE / MANAGER" Foreground="#A991FF" FontSize="12" FontWeight="Bold"/>
-                        <TextBlock Text="Your pixel-art workshop, updated." FontSize="28" FontWeight="Bold" Margin="0,8,0,3"/>
-                        <TextBlock Text="Install from source, manage build tools and update safely." Foreground="#A8B2CB"/>
-                    </StackPanel>
-                    <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#283048"
-                            Padding="14,9" CornerRadius="14">
-                        <TextBlock Text="WINDOWS 11   •   EARLY ACCESS" FontSize="11" FontWeight="SemiBold" Foreground="#CEC7FF"/>
-                    </Border>
-                </Grid>
-                <Grid Margin="0,0,0,18">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Background="{StaticResource Card}" CornerRadius="14" Padding="22" BorderBrush="#343D54" BorderThickness="1">
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="32,28,32,32">
+                <TextBlock Text="ASEPRITE MANAGER   /   WINDOWS 11" Style="{StaticResource Label}"
+                           Foreground="#B6A7FD" Margin="0,0,0,8"/>
+                <TextBlock Text="Build, install, and switch versions."
+                           FontSize="29" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <TextBlock Text="Official GitHub source releases. Your projects stay yours."
+                           Foreground="{StaticResource Secondary}" TextWrapping="Wrap" Margin="0,0,0,21"/>
+
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource Surface}" CornerRadius="13"
+                            Padding="20" BorderThickness="1" BorderBrush="#324158">
                         <StackPanel>
-                            <TextBlock Text="INSTALLED VERSION" Foreground="#AAB4CE" FontSize="12" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="InstalledVersion" Text="Checking..." FontSize="30" FontWeight="Bold" Margin="0,10,0,6"/>
-                            <TextBlock x:Name="InstalledSubtitle" Text="Searching selected installation path" Foreground="#A9B4CA" TextWrapping="Wrap"/>
+                            <TextBlock Text="CURRENT INSTALLATION" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="InstalledVersion" Text="Checking..." FontSize="27"
+                                       FontWeight="Bold" Margin="0,11,0,7" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock x:Name="InstalledSubtitle" Foreground="{StaticResource Secondary}"
+                                       TextWrapping="Wrap" MinHeight="22"/>
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="2" Background="{StaticResource Card}" CornerRadius="14" Padding="22" BorderBrush="#343D54" BorderThickness="1">
+                    <Border Grid.Column="2" Background="{StaticResource Surface}" CornerRadius="13"
+                            Padding="20" BorderThickness="1" BorderBrush="#324158">
                         <StackPanel>
-                            <TextBlock Text="LATEST STABLE ON GITHUB" Foreground="#AAB4CE" FontSize="12" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="LatestVersion" Text="Not checked" FontSize="30" FontWeight="Bold" Margin="0,10,0,6"/>
-                            <TextBlock x:Name="LatestSubtitle" Text="Use Check for updates to query official releases" Foreground="#A9B4CA" TextWrapping="Wrap"/>
+                            <TextBlock Text="LATEST STABLE RELEASE" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="LatestVersion" Text="Not checked" FontSize="27"
+                                       FontWeight="Bold" Margin="0,11,0,7" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock x:Name="LatestSubtitle" Foreground="{StaticResource Secondary}"
+                                       TextWrapping="Wrap" MinHeight="22"/>
                         </StackPanel>
                     </Border>
                 </Grid>
-                <Border Background="{StaticResource Card}" CornerRadius="14" Padding="22" BorderBrush="#343D54" BorderThickness="1" Margin="0,0,0,18">
+
+                <Border Background="{StaticResource Surface}" CornerRadius="13"
+                        Padding="20" BorderBrush="#324158" BorderThickness="1" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="Installation" Style="{StaticResource Section}"/>
-                        <TextBlock Text="Select the folder that contains aseprite.exe, or choose an empty folder for a new install."
-                                   Foreground="#A8B2CB" Margin="0,6,0,13" TextWrapping="Wrap"/>
+                        <TextBlock Text="Choose Aseprite version" Style="{StaticResource SectionTitle}"/>
+                        <TextBlock Text="Select any published GitHub release, including older versions and previews."
+                                   Foreground="{StaticResource Secondary}" TextWrapping="Wrap"
+                                   Margin="0,6,0,13"/>
                         <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
-                            <TextBox x:Name="InstallPath" Grid.Column="0" Height="44" VerticalContentAlignment="Center" TextChanged="InstallPath_Changed"/>
-                            <Button x:Name="BrowseButton" Grid.Column="2" Content="Browse..." Click="Browse_Click"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-                <Border Background="{StaticResource Card}" CornerRadius="14" Padding="22" BorderBrush="#343D54" BorderThickness="1" Margin="0,0,0,18">
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="190"/></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Build prerequisites" Style="{StaticResource Section}"/>
-                            <TextBlock x:Name="DependencySummary" Text="Scanning Git, CMake, Ninja and Visual Studio C++..." Foreground="#A8B2CB" Margin="0,7,0,0" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <Button x:Name="DepsButton" Grid.Column="1" Background="#373457" Content="Install missing tools" VerticalAlignment="Center" Click="Dependencies_Click"/>
-                    </Grid>
-                </Border>
-                <Border Background="#141D33" BorderBrush="#41426E" BorderThickness="1" CornerRadius="14" Padding="20" Margin="0,0,0,18">
-                    <StackPanel>
-                        <TextBlock x:Name="StatusTitle" Text="Ready" FontSize="18" FontWeight="SemiBold" Foreground="#D6C9FF"/>
-                        <TextBlock x:Name="StatusDetail" Text="Check for updates to see the latest available release." Foreground="#B5BED2" Margin="0,7,0,12" TextWrapping="Wrap"/>
-                        <ProgressBar x:Name="WorkProgress" Height="7" Minimum="0" Maximum="100" Value="0" Foreground="#987AFF" Background="#28344F" BorderThickness="0"/>
-                        <Grid Margin="0,16,0,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="175"/><ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="175"/><ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="*"/><ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="145"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="172"/>
                             </Grid.ColumnDefinitions>
-                            <Button x:Name="CheckButton" Grid.Column="0" Content="Check for updates" Click="Check_Click"/>
-                            <Button x:Name="InstallButton" Grid.Column="2" Content="Install Aseprite" Background="#7755DA" Click="Install_Click"/>
-                            <Button x:Name="LaunchButton" Grid.Column="4" Content="Launch Aseprite" Click="Launch_Click"/>
-                            <Button Grid.Column="6" Content="Open log" Click="OpenLog_Click" Background="#2B344A"/>
+                            <ComboBox x:Name="VersionPicker" Grid.Column="0"
+                                      DisplayMemberPath="DisplayName"
+                                      SelectionChanged="VersionPicker_SelectionChanged"
+                                      IsEnabled="False"
+                                      ToolTip="Published versions from github.com/aseprite/aseprite/releases"/>
+                            <Button Grid.Column="2" x:Name="CheckButton" Content="Refresh releases"
+                                    Click="Check_Click"/>
+                        </Grid>
+                        <TextBlock x:Name="VersionDetail" Foreground="#A4B4CF" Margin="0,11,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="Click Refresh releases to load available versions."/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource Surface}" CornerRadius="13"
+                        Padding="20" BorderBrush="#324158" BorderThickness="1" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Installation destination" Style="{StaticResource SectionTitle}"/>
+                        <TextBlock Text="Use an empty folder for a fresh install, or the folder containing an existing source-built aseprite.exe."
+                                   Foreground="{StaticResource Secondary}" TextWrapping="Wrap" Margin="0,6,0,13"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="124"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="InstallPath" Grid.Column="0" Height="44"
+                                     VerticalContentAlignment="Center" TextChanged="InstallPath_Changed"/>
+                            <Button x:Name="BrowseButton" Grid.Column="2" Content="Browse folder"
+                                    Click="Browse_Click"/>
                         </Grid>
                     </StackPanel>
                 </Border>
-                <Grid Margin="0,0,0,8">
-                    <TextBlock Text="Activity" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="Detailed output is also saved to disk." HorizontalAlignment="Right" Foreground="#8896B0" FontSize="12"/>
-                </Grid>
-                <TextBox x:Name="ActivityLog" Height="135" IsReadOnly="True" TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12" Text="Waiting for first action..."/>
-                <TextBlock Text="Unofficial project. Source builds may take a while and require several GB of disk space."
-                           Foreground="#78859E" FontSize="12" Margin="0,16,0,0"/>
+
+                <Border Background="{StaticResource Surface}" CornerRadius="13"
+                        Padding="20" BorderBrush="#324158" BorderThickness="1" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="Required build tools" Style="{StaticResource SectionTitle}"/>
+                        <TextBlock x:Name="DependencySummary" Foreground="{StaticResource Secondary}"
+                                   TextWrapping="Wrap" Margin="0,8,0,13"
+                                   Text="Scanning Git, Git Bash, CMake, Ninja, MSVC and the Windows SDK..."/>
+                        <WrapPanel>
+                            <Button x:Name="DepsButton" Content="Install missing tools" Click="Dependencies_Click"
+                                    Background="#394066" MinWidth="184" Margin="0,0,12,0"/>
+                            <TextBlock Text="Visual Studio C++ workload and Windows SDK may need administrator approval."
+                                       MaxWidth="480" VerticalAlignment="Center" Foreground="#91A3C2"
+                                       FontSize="12" TextWrapping="Wrap"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#19243B" CornerRadius="13" BorderBrush="#505080"
+                        BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock x:Name="StatusTitle" Text="Ready" Style="{StaticResource SectionTitle}"
+                                   Foreground="#CBB5FF"/>
+                        <TextBlock x:Name="StatusDetail" Foreground="#BAC6DD" TextWrapping="Wrap"
+                                   Margin="0,8,0,14"
+                                   Text="Refresh releases to choose a version to install."/>
+                        <ProgressBar x:Name="WorkProgress" Height="8" Maximum="100" Value="0"
+                                     Foreground="#A18AF5" Background="#293752" BorderThickness="0"/>
+                        <WrapPanel Margin="0,17,0,0">
+                            <Button x:Name="InstallButton" Content="Install selected" Background="#785BE0"
+                                    MinWidth="205" Margin="0,0,11,10" Click="Install_Click"/>
+                            <Button x:Name="LaunchButton" Content="Launch Aseprite"
+                                    MinWidth="164" Margin="0,0,11,10" Click="Launch_Click"/>
+                            <Button Content="Open activity log" MinWidth="165"
+                                    Margin="0,0,0,10" Click="OpenLog_Click"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Activity" Style="{StaticResource SectionTitle}" Margin="0,0,0,9"/>
+                <TextBox x:Name="ActivityLog" Height="124" IsReadOnly="True"
+                         TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                         FontFamily="Consolas" FontSize="12" Text="Waiting for first action..."/>
+                <TextBlock Text="Source builds take time and disk space. Older releases may not open projects saved in newer Aseprite versions."
+                           Foreground="#879BB8" FontSize="12" Margin="0,14,0,0" TextWrapping="Wrap"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>

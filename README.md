@@ -6,19 +6,21 @@ Windows-first **source build installer and updater** for [Aseprite](https://gith
 
 ## What this project does
 
-- Check the latest **stable** official GitHub release (never download unofficial prebuilt Aseprite executables).
+- Browse all **published Aseprite GitHub releases** in a dropdown. The latest stable release is labeled **LATEST**; previews are labeled separately.
 - Detect Git, CMake, Ninja and Visual Studio 2022 C++ build tools.
 - Offer to install missing build prerequisites through Windows Package Manager, with explicit approval and UAC where required.
 - Clone the exact official release tag with recursive submodules and use Aseprite's upstream build helper with Git Bash and the Visual Studio x64 environment.
-- Install to a per-user folder by default, or update an existing selected directory.
-- Verify the newly compiled executable before replacing an installed version; retain a rollback backup.
+- Install to a per-user folder by default, or switch an existing explicitly-selected source-built installation to an older/newer published version.
+- Verify the new build before and after swapping; retain the **complete** previous install as a full backup, preserve local extensions/themes/palettes and art stored in the app folder. Projects saved in Documents/Pictures/other folders are not touched.
 - Keep the GUI responsive, with a log and explicit **Check for updates** and **Install / Update** actions.
 
 ## Get a Windows build
 
 See the [Actions tab](../../actions/workflows/windows.yml). Download the artifact from a successful Windows build, extract the zip, and run the EXE. The CI workflow also creates an Inno Setup installer.
 
-**No Windows release should be described as fully tested until an installation, update and rollback are verified on real Windows 11 machines.**
+**No Windows release should be described as fully tested until a fresh dependency installation, source build, update, downgrade and rollback are verified on real Windows 11 machines.**
+
+Older published tags may use obsolete upstream build scripts, Skia versions or toolchains. The selection list is not a guarantee that every historical tag will compile with this manager. On a build failure, the currently installed copy is left untouched. Always keep independent backups of your work before downgrading because old Aseprite versions may not understand newly saved sprite formats.
 
 ## Development
 

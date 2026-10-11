@@ -1,4 +1,6 @@
 using System.IO;
+using System.Collections.Concurrent;
+using System.Windows.Threading;
 using System.Text.Json;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -11,24 +13,33 @@ public partial class MainWindow : Window
 {
     private readonly ManagerService _manager = new();
     private ReleaseInfo? _release;
+    private IReadOnlyList<ReleaseInfo> _releases = Array.Empty<ReleaseInfo>();
     private DependencyReport? _dependencies;
     private string? _installedVersion;
     private bool _busy;
+    private readonly ConcurrentQueue<string> _pendingLog = new();
+    private readonly DispatcherTimer _logTimer = new() { Interval = TimeSpan.FromMilliseconds(220) };
     private CancellationTokenSource? _pathDebounce;
     private static string SettingsPath => System.IO.Path.Combine(ManagerService.DataRoot, "settings.json");
 
     public MainWindow()
     {
         InitializeComponent();
-        _manager.Logged += line => Dispatcher.BeginInvoke(() =>
+        _manager.Logged += line => _pendingLog.Enqueue(line);
+        _logTimer.Tick += (_, _) =>
         {
+            if (_pendingLog.IsEmpty) return;
             if (ActivityLog.Text == "Waiting for first action...") ActivityLog.Clear();
-            ActivityLog.AppendText(line + Environment.NewLine);
-            // Keep the UI fast even during thousands of compiler messages.
+            var batch = new System.Text.StringBuilder();
+            var processed = 0;
+            while (processed++ < 100 && _pendingLog.TryDequeue(out var line))
+                batch.AppendLine(line);
+            ActivityLog.AppendText(batch.ToString());
             if (ActivityLog.Text.Length > 24000)
                 ActivityLog.Text = ActivityLog.Text[^16000..];
             ActivityLog.ScrollToEnd();
-        });
+        };
+        _logTimer.Start();
         InstallPath.Text = LoadSavedInstallPath();
         Loaded += async (_, _) => await RefreshLocalAsync();
         Closing += OnClosing;
@@ -50,6 +61,7 @@ public partial class MainWindow : Window
         _busy = busy;
         InstallPath.IsEnabled = !busy;
         BrowseButton.IsEnabled = !busy;
+        VersionPicker.IsEnabled = !busy && _releases.Count > 0;
         RefreshButtons();
     }
 
@@ -59,9 +71,12 @@ public partial class MainWindow : Window
         DepsButton.IsEnabled = !_busy && (_dependencies is null || !_dependencies.Complete);
         LaunchButton.IsEnabled = !_busy && File.Exists(System.IO.Path.Combine(TargetPath, "aseprite.exe"));
         var canInstall = _release != null &&
-            (_installedVersion is null || VersionOrder.Compare(_installedVersion, _release.Version) < 0);
+            (_installedVersion is null || VersionOrder.Compare(_installedVersion, _release.Version) != 0);
         InstallButton.IsEnabled = !_busy && canInstall;
-        InstallButton.Content = _installedVersion is null ? "Install Aseprite" : "Update now";
+        InstallButton.Content = _installedVersion is null ? "Install selected" :
+            (_release != null && _installedVersion != null &&
+             VersionOrder.Compare(_installedVersion, _release.Version) > 0 ?
+              "Switch to older" : "Switch to selected");
     }
 
     private async Task RefreshLocalAsync()
@@ -76,14 +91,7 @@ public partial class MainWindow : Window
             InstalledSubtitle.Text = _installedVersion is null
                 ? "Fresh installation available. Choose an installation folder."
                 : "Aseprite detected in the selected folder.";
-            if (_release != null)
-            {
-                var current = _installedVersion is null ? -1 : VersionOrder.Compare(_installedVersion, _release.Version);
-                StatusTitle.Text = current >= 0 ? "Up to date" : current < 0 ? "Ready to install" : "Ready";
-                StatusDetail.Text = current >= 0
-                    ? "This installation already matches the latest stable release."
-                    : $"Aseprite {_release.Version} is available for this device.";
-            }
+            UpdateSelectedStatus();
         }
         catch (Exception ex)
         {
@@ -152,25 +160,69 @@ public partial class MainWindow : Window
         WorkProgress.Value = s.Percent;
     });
 
+    private void VersionPicker_SelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        _release = VersionPicker.SelectedItem as ReleaseInfo;
+        if (_release is null)
+        {
+            VersionDetail.Text = "Select a published version.";
+            RefreshButtons();
+            return;
+        }
+        var kind = _release.IsLatest ? "Latest stable release" :
+            _release.IsPreRelease ? "Preview release" : "Published stable release";
+        VersionDetail.Text = $"{kind}  •  {_release.Tag}" +
+            (_release.PublishedAt is { } when ? $"  •  Released {when:yyyy-MM-dd}" : "");
+        UpdateSelectedStatus();
+        RefreshButtons();
+    }
+
+    private void UpdateSelectedStatus()
+    {
+        if (_release == null) return;
+        var current = _installedVersion is null ? -1 :
+            VersionOrder.Compare(_installedVersion, _release.Version);
+        if (current == 0)
+        {
+            StatusTitle.Text = "Selected version is installed";
+            StatusDetail.Text = $"Aseprite {_release.Version} is already installed.";
+        }
+        else
+        {
+            StatusTitle.Text = current > 0 ? "Older version selected" :
+                _installedVersion is null ? "Ready for first installation" : "Version change available";
+            StatusDetail.Text = current > 0
+                ? "Switching backward can make sprites saved by newer versions incompatible. Your existing application folder will be backed up."
+                : $"Aseprite {_release.Version} is ready to build from official source. Your existing installation will be backed up.";
+        }
+    }
+
     private async void Check_Click(object sender, RoutedEventArgs e)
     {
         SetBusy(true);
-        StatusTitle.Text = "Checking GitHub";
-        StatusDetail.Text = "Contacting the official Aseprite stable release API...";
+        StatusTitle.Text = "Loading official releases";
+        StatusDetail.Text = "Retrieving published versions and the latest stable release from GitHub...";
         WorkProgress.Value = 10;
         try
         {
-            _release = await _manager.GetLatestAsync();
-            LatestVersion.Text = $"v{_release.Version}";
-            LatestSubtitle.Text = "Official stable release • github.com/aseprite/aseprite";
+            var previousTag = _release?.Tag;
+            _releases = await _manager.GetReleasesAsync();
+            VersionPicker.ItemsSource = _releases;
+            var latest = _releases.First(r => r.IsLatest);
+            LatestVersion.Text = $"v{latest.Version}";
+            LatestSubtitle.Text = "Official GitHub stable release";
+            VersionPicker.SelectedItem =
+                _releases.FirstOrDefault(r => string.Equals(r.Tag, previousTag,
+                    StringComparison.OrdinalIgnoreCase)) ?? latest;
             WorkProgress.Value = 100;
             await RefreshLocalAsync();
         }
         catch (Exception ex)
         {
-            StatusTitle.Text = "Check failed";
+            StatusTitle.Text = "Couldn't load releases";
             StatusDetail.Text = ex.Message;
-            _manager.Log("CHECK ERROR: " + ex);
+            _manager.Log("GITHUB RELEASE ERROR: " + ex);
         }
         finally { SetBusy(false); }
     }
@@ -211,13 +263,18 @@ public partial class MainWindow : Window
         var target = TargetPath;
         if (MessageBox.Show(this,
             $"Build and install Aseprite {_release.Version} into:\n\n{target}\n\n" +
-            "A fresh compile can take a long time and requires several GB of free disk space. " +
-            "The current installed version (if any) will be kept as a backup. Continue?",
+            "The previous application folder will be retained IN FULL as a dated backup. " +
+            "Existing sprite projects in your Documents, Pictures and other personal folders will not be touched. " +
+            "Local custom themes/extensions and nearby sprite files are carried forward when possible.\n\n" +
+            "OLDER VERSIONS MAY NOT OPEN FILES SAVED WITH NEWER ASEPRITE VERSIONS.\n\n" +
+            "Compiling can take a long time and several GB of disk space. Continue?",
             "Confirm source build", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         SetBusy(true);
         try
         {
-            await _manager.InstallOrUpdateAsync(target, _release, ProgressReporter(), CancellationToken.None);
+            var selected = _release;
+            var progress = ProgressReporter();
+            await Task.Run(() => _manager.InstallOrUpdateAsync(target, selected, progress, CancellationToken.None));
             await RefreshLocalAsync();
             MessageBox.Show(this, $"Aseprite {_release.Version} was installed successfully.\n\nFolder: {target}",
                 "Installation complete", MessageBoxButton.OK, MessageBoxImage.Information);
