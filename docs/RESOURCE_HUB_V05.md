@@ -27,7 +27,7 @@ PixelTown is proprietary and still at its small Prototype 00 art-validation stag
 - Never overwrite an unknown plugin or a managed plugin changed after install. Track SHA-256 per installed file.
 - On update, create a ZIP backup outside PixelTown first, stage within its \`addons/\` directory, and swap with rollback if the replacement fails. Uninstall keeps a recovery ZIP.
 - **Do not change \`project.godot\`, \`.godot\`, user scenes, sprites, import settings or other assets.** The addon is disabled until the user explicitly enables it in **Godot → Project → Project Settings → Plugins**. User then configures Aseprite's executable path in Wizard.
-- Godot 4 branch compatibility is **not yet proven in PixelTown's pinned Godot 4.7.2** until a real Godot import and first Aseprite file test passes; merely installing the addon is not sufficient to claim success.
+- CI now tests that the addon loads inside a real pinned Godot 4.7.2 headless editor on a disposable project. It still needs testing with actual layered .aseprite sprite imports, tags and tilemaps before production approval.
 - Before uninstalling, **disable the editor plugin in Godot**, close Godot, then remove through Manager. Imported Godot resources and the project's settings remain in place.
 
 ### Palettes and licenses
@@ -55,7 +55,7 @@ The Windows GitHub Actions pipeline:
 - WPF layout screenshots at minimum and desktop window sizes.
 - Self-contained executable and Inno Setup installer packaging.
 
-CI passing does **not** prove Godot Aseprite Wizard import compatibility at Godot 4.7.2, in-editor Aseprite Lua script quality, or complete artistic usefulness. Those require hands-on PixelTown testing on real sprite masters.
+CI passing confirms real Godot 4.7.2 editor loading, but does **not** prove importing actual .aseprite sprites, in-editor Lua script quality, or full PixelTown production suitability. Those require hands-on PixelTown testing on real sprite masters.
 
 ## Remaining improvements, by value
 
@@ -68,3 +68,14 @@ CI passing does **not** prove Godot Aseprite Wizard import compatibility at Godo
 7. **macOS** after the Windows core is field-tested.
 
 Related audit: [PIXELTOWN_LIBRARY_AUDIT.md](PIXELTOWN_LIBRARY_AUDIT.md). The art direction and repository rights come from PixelTown docs/00–08, particularly 03_ART_DIRECTION and 05_DECISIONS_AND_OPEN_QUESTIONS.
+
+
+## User-profile backups (v0.5.0)
+
+The Creator's Library now has navigation for **Tools, Palettes, Extensions, Godot, Brushes and Backups**. Managed palette copies can be updated in bulk or safely uninstalled, retaining the previous files.
+
+The user can also create a **read-only ZIP backup** of the complete \`%APPDATA%\Aseprite\` configuration folder, covering themes, palettes, scripts, user settings and the \`user.aseprite-brushes\` file. It validates the ZIP, rejects symlink/reparse-point traversals and disallows writing the backup inside the profile being archived. Users choose the destination and should keep it private because it can contain personal sessions or settings.
+
+There is intentionally **no automatic restore** until an equally reliable transactional restore and recovery workflow has passed testing. Profile backups never edit the original Aseprite files, and Aseprite should be closed to avoid inconsistent snapshots.
+
+CI now tests actual Godot 4.7.2 addon loading, checks archives and paths, and verifies saved brushes/settings appear in test profile ZIPs without changing the source.
