@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
@@ -14,6 +15,7 @@ public partial class MainWindow : Window
     private string? _installedVersion;
     private bool _busy;
     private CancellationTokenSource? _pathDebounce;
+    private static string SettingsPath => System.IO.Path.Combine(ManagerService.DataRoot, "settings.json");
 
     public MainWindow()
     {
@@ -27,7 +29,7 @@ public partial class MainWindow : Window
                 ActivityLog.Text = ActivityLog.Text[^16000..];
             ActivityLog.ScrollToEnd();
         });
-        InstallPath.Text = ManagerService.DefaultInstall;
+        InstallPath.Text = LoadSavedInstallPath();
         Loaded += async (_, _) => await RefreshLocalAsync();
         Closing += OnClosing;
         RefreshButtons();
@@ -101,9 +103,39 @@ public partial class MainWindow : Window
         try
         {
             await Task.Delay(350, tokenSource.Token);
-            if (!tokenSource.IsCancellationRequested) await RefreshLocalAsync();
+            if (!tokenSource.IsCancellationRequested)
+            {
+                SaveInstallPath(TargetPath);
+                await RefreshLocalAsync();
+            }
         }
         catch (OperationCanceledException) { }
+    }
+
+    private static string LoadSavedInstallPath()
+    {
+        try
+        {
+            if (File.Exists(SettingsPath))
+            {
+                using var json = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+                var stored = json.RootElement.GetProperty("installDir").GetString();
+                if (!string.IsNullOrWhiteSpace(stored)) return stored;
+            }
+        }
+        catch { }
+        return ManagerService.DefaultInstall;
+    }
+
+    private static void SaveInstallPath(string path)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path)) return;
+            Directory.CreateDirectory(ManagerService.DataRoot);
+            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new { installDir = path }));
+        }
+        catch { /* path persistence errors should not block the GUI */ }
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
