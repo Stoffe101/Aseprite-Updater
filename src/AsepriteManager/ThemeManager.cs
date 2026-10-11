@@ -109,7 +109,7 @@ public sealed class ThemeCatalog
 
     private static async Task<JsonDocument> FetchJsonAsync(string url, CancellationToken ct)
     {
-        using var response = await Client.GetAsync(url, ct);
+        using var response = await GitHubApi.GetAsync(Client, url, ct);
         response.EnsureSuccessStatusCode();
         return JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
     }
