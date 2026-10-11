@@ -359,7 +359,7 @@ if (args.Contains("--godot-integration"))
     try
     {
         await GodotWizardManager.InstallOrUpdateAsync(godotFixtureProject, Console.WriteLine, CancellationToken.None);
-        var state = GodotWizardManager.Inspect(project);
+        var state = GodotWizardManager.Inspect(godotFixtureProject);
         if (!state.Installed || !state.Managed || state.Modified ||
             !File.Exists(Path.Combine(state.PluginPath, "plugin.gd")) ||
             File.ReadAllText(config) != original)
