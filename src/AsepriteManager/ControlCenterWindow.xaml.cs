@@ -52,12 +52,21 @@ public partial class ControlCenterWindow : Window
         _service.Log("CONTROL CENTER: " + text);
     }
 
-    private void Navigate_Click(object sender, RoutedEventArgs e)
+    private void Navigate_Click(object sender, RoutedEventArgs e) =>
+        ShowPage((sender as Button)?.Tag as string ?? "updates");
+
+    public void ShowPage(string page)
     {
-        var page = (sender as Button)?.Tag as string;
         UpdatesPage.Visibility = page == "updates" ? Visibility.Visible : Visibility.Collapsed;
         RecoveryPage.Visibility = page == "recovery" ? Visibility.Visible : Visibility.Collapsed;
         ProfilesPage.Visibility = page == "profiles" ? Visibility.Visible : Visibility.Collapsed;
+        var selected = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromRgb(105, 84, 184));
+        var normal = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromRgb(51, 67, 95));
+        UpdatesTab.Background = page == "updates" ? selected : normal;
+        RecoveryTab.Background = page == "recovery" ? selected : normal;
+        ProfilesTab.Background = page == "profiles" ? selected : normal;
         PageScroller.ScrollToTop();
     }
 
