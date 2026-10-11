@@ -218,12 +218,19 @@ public sealed class ManagerService
         // Work remains isolated until compilation and version verification both succeed.
         Directory.CreateDirectory(DataRoot);
         var session = Path.Combine(DataRoot, "work", Guid.NewGuid().ToString("N"));
-        var source = Path.Combine(session, "source");
         var stage = Path.Combine(Path.GetDirectoryName(installDir)!, ".aseprite-staging-" + Guid.NewGuid().ToString("N"));
         bool swapped = false;
         Directory.CreateDirectory(session);
+        WindowsBuildDrive? drive = null;
         try
         {
+            // Aseprite's official build.sh (including older release tags) uses
+            // unquoted $pwd paths when creating .build/ and Skia directories.
+            // Present an isolated, space-free drive path to Git Bash. The real
+            // session remains under Manager's private app-data directory.
+            drive = WindowsBuildDrive.Mount(session);
+            var source = Path.Combine(drive.Root, "source");
+            Log($"Temporary build drive: {drive.Root} (source is isolated from the installed Aseprite).");
             progress.Report(new WorkStatus(8, "Downloading", "Cloning the official release and its submodules..."));
             await RunAsync(deps.Git!, new[] { "clone", "--recursive", "--depth", "1", "--branch", release.Tag,
                 "https://github.com/aseprite/aseprite.git", source }, session, ct);
@@ -294,6 +301,13 @@ public sealed class ManagerService
         }
         finally
         {
+            // Release the SUBST mapping before deleting its physical directory.
+            // A failed build must not touch the existing installed version.
+            if (drive != null)
+            {
+                try { drive.Dispose(); }
+                catch (Exception cleanupEx) { Log("BUILD DRIVE CLEANUP WARNING: " + cleanupEx.Message); }
+            }
             TryDelete(session);
             if (!swapped) TryDelete(stage);
         }
