@@ -7,5 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/AsepriteManager/ManagerService.cs" Link="ManagerService.cs" />
+    <Compile Include="../../src/AsepriteManager/InstallSafety.cs" Link="InstallSafety.cs" />
+    <Compile Include="../../src/AsepriteManager/ReleaseCatalog.cs" Link="ReleaseCatalog.cs" />
   </ItemGroup>
 </Project>
