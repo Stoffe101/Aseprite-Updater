@@ -67,8 +67,14 @@ public sealed class ThemeCatalog
             throw new InvalidDataException($"Could not locate official {theme.ReleaseAssetName} release asset.");
         }
 
+        using var repo = await FetchJsonAsync(
+            $"https://api.github.com/repos/{theme.Owner}/{theme.Repository}", ct);
+        var defaultBranch = repo.RootElement.GetProperty("default_branch").GetString() ??
+            throw new InvalidDataException("Theme default branch missing.");
+        if (defaultBranch is not ("main" or "master"))
+            throw new InvalidDataException("Unexpected theme default branch.");
         using var commit = await FetchJsonAsync(
-            $"https://api.github.com/repos/{theme.Owner}/{theme.Repository}/commits/HEAD", ct);
+            $"https://api.github.com/repos/{theme.Owner}/{theme.Repository}/commits/{defaultBranch}", ct);
         var id = commit.RootElement.GetProperty("sha").GetString() ??
             throw new InvalidDataException("Theme commit SHA missing.");
         if (id.Length != 40 || !id.All(Uri.IsHexDigit))
@@ -161,6 +167,9 @@ public sealed class ThemeManager
             throw new InvalidOperationException("A theme folder already exists but is not managed by this app; nothing was overwritten.");
 
         var previous = ReadRecord(theme);
+        if (Directory.Exists(target) && previous == null)
+            throw new InvalidOperationException(
+                "The theme installation has no readable manager manifest; to protect files it cannot be overwritten.");
         if (previous != null && Directory.Exists(target))
         {
             foreach (var (relative, expected) in previous.Files)
@@ -218,6 +227,9 @@ public sealed class ThemeManager
             {
                 if (Directory.Exists(target)) Directory.Delete(target, true);
                 if (backup != null && Directory.Exists(backup)) Directory.Move(backup, target);
+                // A manifest written before another step failed would be stale.
+                // The previous manifest remains at recordPath unless the atomic
+                // final File.Move has already succeeded; don't overwrite it here.
                 throw;
             }
             _log($"Installed {theme.Name}. " +
