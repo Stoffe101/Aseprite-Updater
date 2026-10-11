@@ -85,6 +85,15 @@
                 <TextBlock Text="Curated for PixelTown's square-grid terrain, small characters, equipment layers and Godot asset workflow."
                            Foreground="#B5C1DA" TextWrapping="Wrap" Margin="0,0,0,20"/>
 
+                <WrapPanel Margin="0,0,0,13">
+                    <Button Content="Tools" Tag="tools" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                    <Button Content="Palettes" Tag="palettes" Click="Navigate_Click" MinWidth="98" Height="36"/>
+                    <Button Content="Extensions" Tag="extensions" Click="Navigate_Click" MinWidth="108" Height="36"/>
+                    <Button Content="Godot" Tag="godot" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                    <Button Content="Brushes" Tag="brushes" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                    <Button Content="Backups" Tag="backup" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                </WrapPanel>
+
                 <Border Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
                         CornerRadius="12" Padding="17" Margin="0,0,0,17">
                     <Grid>
@@ -101,7 +110,7 @@
                     </Grid>
                 </Border>
 
-                <Grid Margin="0,0,0,17">
+                <Grid x:Name="ToolSection" Margin="0,0,0,17">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="310"/>
                         <ColumnDefinition Width="14"/>
@@ -112,6 +121,7 @@
                         <StackPanel>
                             <TextBlock Text="AUDITED ASEPRITE TOOLS" FontSize="12" FontWeight="Bold"
                                        Foreground="#B0BEE0" Margin="0,0,0,10"/>
+                            <TextBlock Text="Search tools" Foreground="#889CB9" FontSize="12" Margin="0,0,0,4"/>
                             <TextBox x:Name="ToolSearch" Height="40" VerticalContentAlignment="Center"
                                      TextChanged="Search_Changed" ToolTip="Search by name, category or use case"/>
                             <ListBox x:Name="ToolList" Margin="0,10,0,0" Height="260"
@@ -147,7 +157,7 @@
                     </Border>
                 </Grid>
 
-                <Border Background="{StaticResource Panel}" BorderThickness="1"
+                <Border x:Name="PaletteSection" Background="{StaticResource Panel}" BorderThickness="1"
                         BorderBrush="#36445E" Padding="19" CornerRadius="12" Margin="0,0,0,16">
                     <StackPanel>
                         <TextBlock Text="PALETTE WORKSHOP" FontWeight="Bold" Foreground="#AE9CFF" FontSize="12"/>
@@ -170,7 +180,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Background="{StaticResource Panel}" BorderBrush="#36445E"
+                <Border x:Name="GallerySection" Background="{StaticResource Panel}" BorderBrush="#36445E"
                         BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
                     <StackPanel>
                         <TextBlock Text="PALETTE DISCOVERY" Foreground="#C2B2FF" FontSize="12" FontWeight="Bold"/>
@@ -185,6 +195,7 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
+                                <TextBlock Text="Search palettes" Foreground="#889CB9" FontSize="12" Margin="0,0,0,4"/>
                                 <TextBox x:Name="PaletteSearch" Height="40" VerticalContentAlignment="Center"
                                          TextChanged="PaletteSearch_Changed" ToolTip="Search name, use case or creator"/>
                                 <ListBox x:Name="GalleryList" Height="230" Margin="0,8,0,0"
@@ -214,7 +225,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Background="{StaticResource Panel}" BorderBrush="#36445E"
+                <Border x:Name="ExtensionSection" Background="{StaticResource Panel}" BorderBrush="#36445E"
                         BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
                     <StackPanel>
                         <TextBlock Text="COMMUNITY EXTENSION" Foreground="#C2B2FF"
@@ -235,7 +246,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Background="{StaticResource Panel}" BorderBrush="#36445E"
+                <Border x:Name="GodotSection" Background="{StaticResource Panel}" BorderBrush="#36445E"
                         BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
                     <StackPanel>
                         <TextBlock Text="GODOT 4  /  PIXELTOWN WORKFLOW"
@@ -269,7 +280,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Background="{StaticResource Panel}" BorderBrush="#36445E"
+                <Border x:Name="BrushSection" Background="{StaticResource Panel}" BorderBrush="#36445E"
                         BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
                     <StackPanel>
                         <TextBlock Text="BRUSH SOURCE VAULT" Foreground="#C2B2FF"
@@ -288,7 +299,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Background="{StaticResource Panel}" BorderBrush="#36445E"
+                <Border x:Name="BackupSection" Background="{StaticResource Panel}" BorderBrush="#36445E"
                         BorderThickness="1" CornerRadius="12" Padding="19" Margin="0,0,0,17">
                     <StackPanel>
                         <TextBlock Text="PROFILE BACKUP" Foreground="#C2B2FF" FontSize="12"
