@@ -8,11 +8,11 @@ using System.Text.RegularExpressions;
 namespace AsepriteManager;
 
 public sealed record WorkStatus(int Percent, string Stage, string Detail);
-public sealed record DependencyReport(string? Git, string? CMake, string? Ninja, string? VsDevCmd)
+public sealed record DependencyReport(string? Git, string? CMake, string? Ninja, string? VsDevCmd, bool VcRuntime)
 {
-    public bool Complete => Git != null && CMake != null && Ninja != null && VsDevCmd != null;
+    public bool Complete => Git != null && CMake != null && Ninja != null && VsDevCmd != null && VcRuntime;
     public string Summary =>
-        $"Git: {Label(Git)}   •   CMake: {Label(CMake)}   •   Ninja: {Label(Ninja)}   •   VS 2022 C++: {Label(VsDevCmd)}";
+        $"Git/Bash: {Label(Git)}   •   CMake: {Label(CMake)}   •   Ninja: {Label(Ninja)}   •   VS 2022 C++ and SDK: {Label(VsDevCmd)}   •   VC++ Runtime: {(VcRuntime ? "Ready" : "MISSING")}";
     private static string Label(string? p) => p is null ? "MISSING" : "Ready";
 }
 
@@ -98,7 +98,8 @@ public sealed class ManagerService
             git,
             FindExe("cmake.exe", @"C:\Program Files\CMake\bin\cmake.exe"),
             FindExe("ninja.exe"),
-            HasWindowsSdk() ? GetVsDevCmd() : null);
+            HasWindowsSdk() ? GetVsDevCmd() : null,
+            HasVcRuntime());
     }
 
     public async Task<string?> ReadInstalledVersionAsync(string installDir, CancellationToken ct = default)
@@ -139,6 +140,7 @@ public sealed class ManagerService
         if (deps.Git == null) basic.Add(("Git for Windows (includes Git Bash)", "Git.Git"));
         if (deps.CMake == null) basic.Add(("CMake", "Kitware.CMake"));
         if (deps.Ninja == null) basic.Add(("Ninja", "Ninja-build.Ninja"));
+        if (!deps.VcRuntime) basic.Add(("Microsoft Visual C++ x64 runtime", "Microsoft.VCRedist.2015+.x64"));
         var count = basic.Count + (deps.VsDevCmd == null ? 1 : 0);
         var index = 0;
 
@@ -408,6 +410,17 @@ public sealed class ManagerService
             @"C:\Program Files (x86)\Git\bin\bash.exe"
         };
         return guesses.FirstOrDefault(File.Exists);
+    }
+
+    private static bool HasVcRuntime()
+    {
+        try
+        {
+            const string key = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64";
+            var installed = Microsoft.Win32.Registry.GetValue(key, "Installed", 0);
+            return installed is int status && status == 1;
+        }
+        catch { return false; }
     }
 
     private static bool HasWindowsSdk()
