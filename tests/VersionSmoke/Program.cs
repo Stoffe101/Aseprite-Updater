@@ -246,7 +246,7 @@ try
     if (!generated.Contains("167 134  93") ||
         !generated.Contains("182 101  73"))
         throw new Exception("Color extraction failed or was not RGB accurate.");
-    if (generated.Split('\n').Count(x => x.Contains("A7865D")) != 1)
+    if (generated.Split('\n').Count(x => x.TrimEnd().EndsWith("DIRT")) != 1)
         throw new Exception("Duplicate colors were not eliminated.");
     try
     {
