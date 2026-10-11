@@ -390,11 +390,12 @@ public partial class MainWindow : Window
         });
     }
 
-    private void RepairIcon_Click(object sender, RoutedEventArgs e)
+    private async void RepairIcon_Click(object sender, RoutedEventArgs e)
     {
+        SetBusy(true);
         try
         {
-            _manager.RepairAsepriteShortcut(TargetPath);
+            await _manager.RepairAsepriteShortcutAsync(TargetPath);
             ShowInstalledIcon(TargetPath);
             MessageBox.Show(this, "Aseprite's Start Menu shortcut has been updated.", "Icon repaired",
                 MessageBoxButton.OK, MessageBoxImage.Information);
@@ -405,6 +406,7 @@ public partial class MainWindow : Window
             MessageBox.Show(this, ex.Message, "Icon repair failed",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+        finally { SetBusy(false); }
     }
 
     private async void Dependencies_Click(object sender, RoutedEventArgs e)
