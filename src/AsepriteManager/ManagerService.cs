@@ -102,7 +102,7 @@ public sealed class ManagerService
             HasVcRuntime());
     }
 
-    public async Task<string?> ReadInstalledVersionAsync(string installDir, CancellationToken ct = default)
+    public async Task<string?> ReadInstalledVersionAsync(string installDir, CancellationToken ct = default, bool allowMarkerFallback = true)
     {
         var exe = Path.Combine(installDir, "aseprite.exe");
         if (!File.Exists(exe)) return null;
@@ -117,7 +117,7 @@ public sealed class ManagerService
         {
             Log("Version probe failed: " + ex.Message);
             var marker = Path.Combine(installDir, "aseprite-manager.json");
-            if (File.Exists(marker))
+            if (allowMarkerFallback && File.Exists(marker))
             {
                 try
                 {
@@ -273,7 +273,7 @@ public sealed class ManagerService
             InstallSafety.SwapVerifiedInstallation(stage, installDir, () =>
             {
                 // Verify the executable and version again after the final rename.
-                var post = ReadInstalledVersionAsync(installDir, CancellationToken.None).GetAwaiter().GetResult();
+                var post = ReadInstalledVersionAsync(installDir, CancellationToken.None, allowMarkerFallback: false).GetAwaiter().GetResult();
                 return post != null && VersionOrder.Compare(post, release.Version) == 0;
             }, Log);
             swapped = true;
