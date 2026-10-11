@@ -153,15 +153,23 @@ public static class AsepriteBuildCache
         var dest = Entry(tag);
         if (Directory.Exists(dest))
         {
-            // Never overwrite a previously trusted cache entry. A corrupt
-            // cached item can be removed explicitly from Cache Management.
-            if (HasBuild(tag, version))
+            var current = ReadManifest(dest);
+            if (current != null && current.Tag == tag && current.Version == version &&
+                ValidateFiles(Path.Combine(dest, "payload"), current.Files))
             {
-                log("Compiled version already recorded in local cache.");
+                log("Compiled version already present and verified in local cache.");
                 return;
             }
-            log("Existing compiled cache entry cannot be overwritten. Clear build cache to replace it.");
-            return;
+            // Preserve the invalid candidate for diagnostics, but allow a
+            // newly verified source build to populate the correct cache key.
+            if ((File.GetAttributes(dest) & FileAttributes.ReparsePoint) != 0)
+            {
+                log("Existing cache entry is linked; refusing to replace it.");
+                return;
+            }
+            var invalid = Path.Combine(Root, ".invalid-" + Guid.NewGuid().ToString("N"));
+            Directory.Move(dest, invalid);
+            log("Quarantined an invalid compiled cache at " + invalid);
         }
         var staging = Path.Combine(Root, ".pending-" + Guid.NewGuid().ToString("N"));
         var payload = Path.Combine(staging, "payload");
@@ -191,6 +199,8 @@ public static class AsepriteBuildCache
     public static void Clear(Action<string> log)
     {
         if (!Directory.Exists(Root)) return;
+        if ((File.GetAttributes(Root) & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidDataException("Refusing to clear a linked cache root.");
         foreach (var dir in Directory.EnumerateDirectories(Root))
         {
             if ((File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0)
