@@ -36,6 +36,7 @@ public partial class LibraryWindow : Window
     {
         _busy = value;
         ToolSearch.IsEnabled = !value;
+        StarterKitButton.IsEnabled = !value;
         ToolList.IsEnabled = !value;
         InstallToolButton.IsEnabled = !value && ToolList.SelectedItem != null;
         RemoveToolButton.IsEnabled = !value && ToolList.SelectedItem is LibraryTool tool &&
@@ -190,6 +191,73 @@ public partial class LibraryWindow : Window
                 "Some tools were protected or failed: " + string.Join(" | ", failed));
         }
         catch (Exception ex) { SetStatus("Update failed: " + ex.Message); }
+        finally { SetBusy(false); RefreshToolDetails(); }
+    }
+
+    private async void StarterKit_Click(object sender, RoutedEventArgs e)
+    {
+        var pick = new OpenFolderDialog
+        {
+            Title = "Choose the local PixelTown Godot project folder"
+        };
+        if (pick.ShowDialog(this) != true) return;
+        string palette;
+        try { palette = WorkshopLibrary.ExtractPixelTownPalette(pick.FolderName); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "PixelTown folder not recognized",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (MessageBox.Show(this,
+            "Set up PixelTown's *prototype* art toolkit?\n\n" +
+            "This installs four audited MIT scripts: Tiles to Layers, Pack Similar Tiles, " +
+            "Move Cels, and Stroke Outside Selection, plus a locally generated color palette.\n\n" +
+            "Nothing will be written to the PixelTown project itself. Existing edited managed resources " +
+            "will be protected. Scripts run code when invoked in Aseprite, so review their source and " +
+            "test on copies of sprites. Close Aseprite before starting.",
+            "Install PixelTown starter kit", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+        SetBusy(true);
+        var failures = new List<string>();
+        try
+        {
+            SetStatus("Fetching vetted official Aseprite script revision...");
+            var sha = await WorkshopLibrary.LatestToolRevision(CancellationToken.None);
+            foreach (var tool in WorkshopLibrary.Tools)
+            {
+                SetStatus("Installing " + tool.Name + "...");
+                try
+                {
+                    if (WorkshopLibrary.Revision(tool) == sha && WorkshopLibrary.Installed(tool))
+                        continue;
+                    await Task.Run(() => WorkshopLibrary.InstallTool(
+                        tool, sha, _service.Log, CancellationToken.None));
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(tool.Name + ": " + ex.Message);
+                    _service.Log("KIT ITEM FAILED: " + tool.Name + ": " + ex);
+                }
+            }
+            try
+            {
+                WorkshopLibrary.InstallPalette("pixeltown-prototype",
+                    "PixelTown Prototype Colors (unapproved)", palette, _service.Log);
+                PaletteStatus.Text = "PixelTown draft colors installed from the local project.";
+            }
+            catch (Exception ex)
+            {
+                failures.Add("PixelTown palette: " + ex.Message);
+                _service.Log("KIT PALETTE FAILED: " + ex);
+            }
+            SetStatus(failures.Count == 0
+                ? "PixelTown starter kit installed. Restart Aseprite to load scripts and palettes."
+                : "Kit partially installed, with protected items skipped: " + string.Join(" | ", failures));
+        }
+        catch (Exception ex) { SetStatus("Starter kit setup failed: " + ex.Message); }
         finally { SetBusy(false); RefreshToolDetails(); }
     }
 
