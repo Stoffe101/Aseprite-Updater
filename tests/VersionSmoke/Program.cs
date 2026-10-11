@@ -305,3 +305,90 @@ if (args.Contains("--library-integration"))
         Console.WriteLine("PASS: upstream MIT script direct install/uninstall: " + item.Name);
     }
 }
+
+
+// Godot integration safety: reject unexpected files and traversals. The
+// installed plugin must leave the user's project.godot unchanged.
+byte[] FakeWizardArchive(bool unsafePath = false)
+{
+    using var stream = new MemoryStream();
+    using (var zip = new System.IO.Compression.ZipArchive(stream,
+        System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+    {
+        void Put(string file, string text)
+        {
+            var e = zip.CreateEntry("godot-aseprite-wizard-fixture/addons/AsepriteWizard/" + file);
+            using var writer = new StreamWriter(e.Open());
+            writer.Write(text);
+        }
+        Put("plugin.cfg", "[plugin]\nname=\"Aseprite Wizard\"\n");
+        Put("plugin.gd", "@tool\nextends EditorPlugin\n");
+        Put("LICENSE", "MIT");
+        for (int i = 0; i < 9; ++i)
+            Put("test/file" + i + ".gd", "extends RefCounted\n");
+        if (unsafePath) Put("../evil.txt", "evil");
+    }
+    return stream.ToArray();
+}
+var godotSafeRoot = Path.Combine(Path.GetTempPath(), "WizardSafety-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(godotSafeRoot);
+try
+{
+    GodotWizardManager.ExtractWizardArchive(FakeWizardArchive(), godotSafeRoot);
+    if (!File.Exists(Path.Combine(godotSafeRoot, "plugin.gd")))
+        throw new Exception("Safe Godot plugin fixture was not extracted.");
+    var badRoot = Path.Combine(godotSafeRoot, "malicious");
+    Directory.CreateDirectory(badRoot);
+    try
+    {
+        GodotWizardManager.ExtractWizardArchive(FakeWizardArchive(true), badRoot);
+        throw new Exception("Traversal archive was accepted.");
+    }
+    catch (InvalidDataException) { }
+    Console.WriteLine("PASS: Godot addon archive identity and path validation.");
+}
+finally { try { Directory.Delete(godotSafeRoot, true); } catch { } }
+
+if (args.Contains("--godot-integration"))
+{
+    var project = Path.Combine(Path.GetTempPath(), "Godot 4 Project " + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(project);
+    var config = Path.Combine(project, "project.godot");
+    var original = "config_version=5\n[application]\nconfig/name=\"CI Wizard Test\"\n";
+    File.WriteAllText(config, original);
+    try
+    {
+        await GodotWizardManager.InstallOrUpdateAsync(project, Console.WriteLine, CancellationToken.None);
+        var state = GodotWizardManager.Inspect(project);
+        if (!state.Installed || !state.Managed || state.Modified ||
+            !File.Exists(Path.Combine(state.PluginPath, "plugin.gd")) ||
+            File.ReadAllText(config) != original)
+            throw new Exception("Godot Wizard install changed project config or failed integrity.");
+        GodotWizardManager.Uninstall(project, Console.WriteLine);
+        if (Directory.Exists(state.PluginPath) || File.ReadAllText(config) != original)
+            throw new Exception("Godot addon uninstall touched the project or retained plugin files.");
+        Console.WriteLine("PASS: real Godot 4 Wizard addon downloaded, installed and removed without changing project.godot.");
+    }
+    finally { try { Directory.Delete(project, true); } catch { } }
+}
+if (args.Contains("--palette-integration"))
+{
+    foreach (var p in PaletteGallery.Presets)
+    {
+        var (_, gpl) = await PaletteGallery.DownloadAsync(p);
+        var colors = PaletteGallery.Colors(gpl);
+        if (colors.Count < 2 || colors.Count > 256)
+            throw new Exception("Invalid gallery palette: " + p.Name);
+        Console.WriteLine($"PASS: upstream palette {p.Name}, {colors.Count} RGB swatches.");
+    }
+}
+if (args.Contains("--overlay-integration"))
+{
+    await TileIndexOverlayManager.InstallAsync(Console.WriteLine, CancellationToken.None);
+    if (!TileIndexOverlayManager.Installed ||
+        !File.Exists(Path.Combine(TileIndexOverlayManager.Folder, "tile-index-overlay.lua")))
+        throw new Exception("Tile Index Overlay was not installed.");
+    TileIndexOverlayManager.Remove(Console.WriteLine);
+    if (TileIndexOverlayManager.Installed) throw new Exception("Tile Index Overlay removal failed.");
+    Console.WriteLine("PASS: curated Tile Index Overlay installed and removed.");
+}
