@@ -28,6 +28,21 @@ jobs:
         run: |
           dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --library-integration
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify real Godot 4 Aseprite Wizard package and reversible install
+        shell: pwsh
+        run: |
+          dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --godot-integration
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Validate curated palette preview gallery
+        shell: pwsh
+        run: |
+          dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --palette-integration
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify real Tile Index extension install and uninstall
+        shell: pwsh
+        run: |
+          dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --overlay-integration
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Restore WPF app
         run: dotnet restore src/AsepriteManager/AsepriteManager.csproj
       - name: Build WPF app
