@@ -18,6 +18,7 @@
     <Compile Include="../../src/AsepriteManager/ProfileBackupService.cs" Link="ProfileBackupService.cs" />
     <Compile Include="../../src/AsepriteManager/ProfileRecoveryService.cs" Link="ProfileRecoveryService.cs" />
     <Compile Include="../../src/AsepriteManager/ProjectProfiles.cs" Link="ProjectProfiles.cs" />
+    <Compile Include="../../src/AsepriteManager/LibraryFavorites.cs" Link="LibraryFavorites.cs" />
     <Compile Include="../../src/AsepriteManager/GitHubApi.cs" Link="GitHubApi.cs" />
   </ItemGroup>
 </Project>
