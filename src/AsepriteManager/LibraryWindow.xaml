@@ -85,6 +85,22 @@
                 <TextBlock Text="Curated for PixelTown's square-grid terrain, small characters, equipment layers and Godot asset workflow."
                            Foreground="#B5C1DA" TextWrapping="Wrap" Margin="0,0,0,20"/>
 
+                <Border Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
+                        CornerRadius="12" Padding="17" Margin="0,0,0,17">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="225"/></Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,10,0">
+                            <TextBlock Text="PIXELTOWN STARTER KIT" Foreground="#CBB8FF"
+                                       FontSize="12" FontWeight="Bold"/>
+                            <TextBlock Text="Install the four curated sprite-production scripts and your local prototype palette."
+                                       TextWrapping="Wrap" Foreground="#D4DCF3" Margin="0,6,0,0"/>
+                        </StackPanel>
+                        <Button x:Name="StarterKitButton" Grid.Column="1" Content="Set up PixelTown kit"
+                                Background="#7357D4" Click="StarterKit_Click" Margin="0"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
                 <Grid Margin="0,0,0,17">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="310"/>
