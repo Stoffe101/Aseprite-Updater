@@ -122,6 +122,7 @@
                             <TextBlock Text="AUDITED ASEPRITE TOOLS" FontSize="12" FontWeight="Bold"
                                        Foreground="#B0BEE0" Margin="0,0,0,10"/>
                             <TextBlock Text="Search tools" Foreground="#889CB9" FontSize="12" Margin="0,0,0,4"/>
+                            <CheckBox x:Name="ToolFavoritesOnly" Content="Favorites only" Margin="0,0,0,8" Foreground="#C6B5F5" Checked="FavoriteFilter_Changed" Unchecked="FavoriteFilter_Changed"/>
                             <TextBox x:Name="ToolSearch" Height="40" VerticalContentAlignment="Center"
                                      TextChanged="Search_Changed" ToolTip="Search by name, category or use case"/>
                             <ListBox x:Name="ToolList" Margin="0,10,0,0" Height="260"
@@ -149,6 +150,7 @@
                                 <Button x:Name="InstallToolButton" Content="Install selected"
                                         Background="#7357D4" Click="InstallTool_Click"/>
                                 <Button x:Name="RemoveToolButton" Content="Uninstall" Click="RemoveTool_Click"/>
+                                <Button x:Name="FavoriteToolButton" Content="Add favorite" Click="FavoriteTool_Click"/>
                                 <Button Content="View source" Click="OpenToolSource_Click"/>
                             </WrapPanel>
                             <TextBlock Text="Lua scripts can execute code. Only the explicitly reviewed, upstream examples are offered for direct installation. Confirm each install and review the source first."
@@ -196,6 +198,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Search palettes" Foreground="#889CB9" FontSize="12" Margin="0,0,0,4"/>
+                                <CheckBox x:Name="PaletteFavoritesOnly" Content="Favorites only" Margin="0,0,0,8" Foreground="#C6B5F5" Checked="FavoriteFilter_Changed" Unchecked="FavoriteFilter_Changed"/>
                                 <TextBox x:Name="PaletteSearch" Height="40" VerticalContentAlignment="Center"
                                          TextChanged="PaletteSearch_Changed" ToolTip="Search name, use case or creator"/>
                                 <ListBox x:Name="GalleryList" Height="230" Margin="0,8,0,0"
@@ -214,6 +217,7 @@
                                             Click="PreviewPalette_Click"/>
                                     <Button x:Name="InstallPaletteButton" Content="Install preset"
                                             Click="InstallGalleryPalette_Click" Background="#6752B4"/>
+                                    <Button x:Name="FavoritePaletteButton" Content="Add favorite" Click="FavoritePalette_Click"/>
                                     <Button x:Name="RemoveGalleryPaletteButton" Content="Uninstall copy"
                                             Click="RemoveGalleryPalette_Click"/>
                                     <Button x:Name="UpdateGalleryPalettesButton" Content="Update managed"
