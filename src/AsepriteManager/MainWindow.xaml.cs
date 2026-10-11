@@ -70,6 +70,7 @@ public partial class MainWindow : Window
         VersionPicker.IsEnabled = !busy && _releases.Count > 0;
         ThemePicker.IsEnabled = !busy;
         InstallThemeButton.IsEnabled = !busy;
+        RemoveThemeButton.IsEnabled = !busy && ThemePicker.SelectedItem is ThemeDefinition selected && _themeManager.IsInstalled(selected);
         InstallRecommendedButton.IsEnabled = !busy;
         CheckThemesButton.IsEnabled = !busy;
         UpdateThemesButton.IsEnabled = !busy && ThemeCatalog.Curated.Any(_themeManager.IsInstalled);
@@ -290,6 +291,31 @@ public partial class MainWindow : Window
             (update ? "  •  UPDATE AVAILABLE" : installed ? "  •  Installed" : "  •  Not installed");
         InstallThemeButton.Content = installed ? (update ? "Update selected theme" : "Reinstall selected theme") :
             "Install selected theme";
+        RemoveThemeButton.IsEnabled = !_busy && installed;
+    }
+
+    private void RemoveTheme_Click(object sender, RoutedEventArgs e)
+    {
+        if (ThemePicker.SelectedItem is not ThemeDefinition theme) return;
+        if (MessageBox.Show(this,
+            $"Uninstall your managed {theme.Name} theme?\n\n" +
+            "Custom changes are protected and the original folder is backed up. " +
+            "Aseprite's built-in themes and your sprites are untouched. Close Aseprite first.",
+            "Uninstall selected theme", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        try
+        {
+            _themeManager.RemoveTheme(theme);
+            StatusTitle.Text = "Theme uninstalled";
+            StatusDetail.Text = theme.Name + " removed. Backup retained.";
+        }
+        catch (Exception ex)
+        {
+            StatusTitle.Text = "Theme uninstall blocked";
+            StatusDetail.Text = ex.Message;
+            _manager.Log("THEME UNINSTALL ERROR: " + ex);
+        }
+        UpdateThemeDetail();
     }
 
     private async void InstallTheme_Click(object sender, RoutedEventArgs e)
