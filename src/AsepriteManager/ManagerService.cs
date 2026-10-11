@@ -256,6 +256,11 @@ public sealed class ManagerService
             ct.ThrowIfCancellationRequested();
             progress.Report(new WorkStatus(80, "Staging", "Preparing the verified build without touching the current installation..."));
             CopyDirectory(built, stage);
+            // Source-built executables may not embed a usable Windows icon.
+            // Preserve the upstream-supplied real Aseprite icon alongside it.
+            var upstreamIcon = Path.Combine(source, "data", "icons", "ase.ico");
+            if (File.Exists(upstreamIcon))
+                File.Copy(upstreamIcon, Path.Combine(stage, "aseprite.ico"), overwrite: true);
             if (Directory.Exists(installDir))
                 InstallSafety.PreserveUserContent(installDir, stage, Log);
             var marker = JsonSerializer.Serialize(new { version = release.Version, release = release.Tag,
@@ -294,6 +299,37 @@ public sealed class ManagerService
         }
     }
 
+    public async Task RepairAsepriteShortcutAsync(string installDir, CancellationToken ct = default)
+    {
+        var exe = Path.Combine(installDir, "aseprite.exe");
+        if (!File.Exists(exe))
+            throw new FileNotFoundException("Select an installed Aseprite directory first.", exe);
+        var icon = Path.Combine(installDir, "aseprite.ico");
+        if (!File.Exists(icon))
+        {
+            var inData = Path.Combine(installDir, "data", "icons", "ase.ico");
+            if (File.Exists(inData)) File.Copy(inData, icon);
+            else
+            {
+                // Older source installs may lack this resource. Retrieve it directly
+                // from upstream only when the user asks to repair the shortcut.
+                using var response = await Client.GetAsync(
+                    "https://raw.githubusercontent.com/aseprite/aseprite/main/data/icons/ase.ico",
+                    HttpCompletionOption.ResponseHeadersRead, ct);
+                response.EnsureSuccessStatusCode();
+                if (response.Content.Headers.ContentLength is > 1_000_000)
+                    throw new InvalidDataException("Official Aseprite icon was unexpectedly large.");
+                var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+                if (bytes.Length is < 32 or > 1_000_000 ||
+                    bytes[0] != 0 || bytes[1] != 0 || bytes[2] != 1 || bytes[3] != 0)
+                    throw new InvalidDataException("Downloaded icon was not a valid ICO header.");
+                await File.WriteAllBytesAsync(icon, bytes, ct);
+            }
+        }
+        CreateStartMenuShortcut(installDir);
+        Log("Updated Aseprite's Start Menu shortcut with its upstream icon.");
+    }
+
     private static void CreateStartMenuShortcut(string installDir)
     {
         var programs = Path.Combine(
@@ -309,7 +345,10 @@ public sealed class ManagerService
         shortcut.TargetPath = target;
         shortcut.WorkingDirectory = installDir;
         shortcut.Description = "Aseprite (compiled locally from official source)";
-        shortcut.IconLocation = target + ",0";
+        var officialIcon = Path.Combine(installDir, "aseprite.ico");
+        if (!File.Exists(officialIcon))
+            officialIcon = Path.Combine(installDir, "data", "icons", "ase.ico");
+        shortcut.IconLocation = File.Exists(officialIcon) ? officialIcon + ",0" : target + ",0";
         shortcut.Save();
     }
 

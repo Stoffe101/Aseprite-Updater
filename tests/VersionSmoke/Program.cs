@@ -157,3 +157,73 @@ if (OperatingSystem.IsWindows())
     }
     finally { try { Directory.Delete(rootWithSpaces, true); } catch { } }
 }
+
+
+// Curated themes can contain graphics, fonts and metadata, but never executable
+// scripts and never paths that escape the designated extension folder.
+byte[] BuildThemeZip(bool includeEvil = false)
+{
+    using var ms = new MemoryStream();
+    using (var zip = new System.IO.Compression.ZipArchive(ms,
+        System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+    {
+        void Entry(string name, string content)
+        {
+            var file = zip.CreateEntry(name);
+            using var w = new StreamWriter(file.Open());
+            w.Write(content);
+        }
+        Entry("theme/package.json",
+            "{\"name\":\"smoke-theme\",\"version\":\"1.0\",\"contributes\":{\"themes\":[{\"id\":\"smoke\",\"path\":\".\"}]}}");
+        Entry("theme/theme.xml", "<theme/>");
+        Entry("theme/sheet.png", "png_placeholder");
+        Entry("theme/malicious.lua", "os.execute('ignored')");
+        if (includeEvil)
+            Entry("theme/../../evil.txt", "bad");
+    }
+    return ms.ToArray();
+}
+var tempTheme = Path.Combine(Path.GetTempPath(), "AsepriteManager-ThemeSafe-" + Guid.NewGuid().ToString("N"));
+try
+{
+    Directory.CreateDirectory(tempTheme);
+    ThemeManager.UnpackVerifiedTheme(BuildThemeZip(), tempTheme);
+    if (!File.Exists(Path.Combine(tempTheme, "theme.xml")))
+        throw new Exception("Valid theme was not extracted.");
+    if (File.Exists(Path.Combine(tempTheme, "malicious.lua")))
+        throw new Exception("Unsafe extension script was installed.");
+    try
+    {
+        ThemeManager.UnpackVerifiedTheme(BuildThemeZip(true),
+            Path.Combine(tempTheme, "unsafe"));
+        throw new Exception("Unsafe theme archive should have been rejected.");
+    }
+    catch (InvalidDataException) { }
+    Console.WriteLine("PASS: valid themes extracted; unexpected scripts excluded; traversal rejected.");
+}
+finally
+{
+    try { Directory.Delete(tempTheme, true); } catch { }
+}
+
+
+// Optional GitHub-backed check of the actual community theme archives.
+// Only executes when explicitly requested by CI; no settings or installs.
+if (args.Contains("--theme-integration"))
+{
+    var catalog = new ThemeCatalog();
+    foreach (var theme in ThemeCatalog.Curated)
+    {
+        var resolved = await catalog.ResolveAsync(theme, CancellationToken.None);
+        var archive = await catalog.DownloadAsync(resolved, CancellationToken.None);
+        var dir = Path.Combine(Path.GetTempPath(),
+            "Aseprite-Community-Theme-Test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(dir);
+            ThemeManager.UnpackVerifiedTheme(archive, dir);
+            Console.WriteLine($"PASS: real upstream {theme.Name}: {resolved.Revision}");
+        }
+        finally { try { Directory.Delete(dir, recursive: true); } catch { } }
+    }
+}

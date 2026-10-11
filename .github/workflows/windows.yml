@@ -21,6 +21,8 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Run version normalization checks
         run: dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release
+      - name: Validate real curated theme archives
+        run: dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --theme-integration
       - name: Restore WPF app
         run: dotnet restore src/AsepriteManager/AsepriteManager.csproj
       - name: Build WPF app
