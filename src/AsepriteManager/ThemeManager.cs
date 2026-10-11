@@ -239,6 +239,32 @@ public sealed class ThemeManager
         finally { if (Directory.Exists(stage)) Directory.Delete(stage, true); }
     }
 
+    public void RemoveTheme(ThemeDefinition theme)
+    {
+        if (!ThemeCatalog.Curated.Contains(theme))
+            throw new InvalidOperationException("Theme is not curated.");
+        if (System.Diagnostics.Process.GetProcessesByName("aseprite").Length > 0)
+            throw new InvalidOperationException("Close Aseprite before removing themes.");
+        var dir = Folder(theme);
+        var receiptPath = RecordFile(theme);
+        var receipt = ReadRecord(theme);
+        if (receipt == null || !Directory.Exists(dir))
+            throw new InvalidOperationException("The selected theme was not installed by Manager.");
+        var files = Directory.GetFiles(dir, "*", SearchOption.AllDirectories);
+        if (files.Length != receipt.Files.Count ||
+            files.Any(file =>
+                !receipt.Files.TryGetValue(Path.GetRelativePath(dir, file), out var hash) ||
+                !string.Equals(Sha256File(file), hash, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException(
+                "The managed theme was customized. Removal was blocked to avoid losing changes.");
+
+        Directory.CreateDirectory(BackupDir);
+        var backup = Path.Combine(BackupDir, theme.Id + "-uninstall-" + Guid.NewGuid().ToString("N"));
+        Directory.Move(dir, backup);
+        File.Delete(receiptPath);
+        _log($"Theme {theme.Name} uninstalled. Original files saved at {backup}.");
+    }
+
     private static ThemeRecord? ReadRecord(ThemeDefinition theme)
     {
         try { return JsonSerializer.Deserialize<ThemeRecord>(File.ReadAllText(RecordFile(theme))); }
