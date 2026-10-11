@@ -358,17 +358,26 @@ public sealed class ManagerService
         {
             // Remove NTFS junction without following it, then release SUBST.
             // Downloaded shared Skia contents must survive session cleanup.
+            var sourceSafeToRemove = true;
             if (skiaLink != null)
             {
                 try { skiaLink.Dispose(); }
-                catch (Exception ex) { Log("SKIA CACHE LINK CLEANUP WARNING: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    Log("SKIA CACHE LINK CLEANUP WARNING: " + ex.Message);
+                    // Never recurse into a workspace while an NTFS junction
+                    // may still reference the persistent Skia cache.
+                    sourceSafeToRemove = false;
+                }
             }
             if (drive != null)
             {
                 try { drive.Dispose(); }
                 catch (Exception ex) { Log("BUILD DRIVE CLEANUP WARNING: " + ex.Message); }
             }
-            if (session != null) TryDelete(session);
+            if (session != null && sourceSafeToRemove) TryDelete(session);
+            else if (session != null)
+                Log("Retained temporary build workspace for safe manual cleanup: " + session);
             if (!swapped) TryDelete(stage);
         }
     }
