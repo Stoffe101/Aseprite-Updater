@@ -741,3 +741,35 @@ if (OperatingSystem.IsWindows())
         try { Directory.Delete(physical, true); } catch { }
     }
 }
+
+
+// A previously installed source build retained by the rollback subsystem is
+// eligible for an instant switch even if new compiled caches aren't populated.
+var restoreFixtures = Path.Combine(Path.GetTempPath(),
+    "Aseprite backup fastpath " + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(restoreFixtures);
+try
+{
+    var requestedInstall = Path.Combine(restoreFixtures, "Aseprite");
+    var backup = requestedInstall + ".backup-20261012-010203-test";
+    Directory.CreateDirectory(backup);
+    File.WriteAllText(Path.Combine(backup, "aseprite.exe"), "existing installation");
+    File.WriteAllText(Path.Combine(backup, "aseprite-manager.json"),
+        "{\"version\":\"1.3.18.2\",\"release\":\"v1.3.18.2\"}");
+    File.WriteAllText(Path.Combine(backup, "custom-project.aseprite"), "user art preserved");
+    if (!AsepriteBuildCache.HasPreviousInstallBackup(requestedInstall,
+        "v1.3.18.2", "1.3.18.2"))
+        throw new Exception("Existing valid prior-install version not discoverable.");
+    var stage = Path.Combine(restoreFixtures, "stage");
+    if (!AsepriteBuildCache.TryStagePreviousInstall(requestedInstall, "v1.3.18.2",
+        "1.3.18.2", stage, Console.WriteLine))
+        throw new Exception("Manager failed to stage retained previous installation.");
+    if (File.ReadAllText(Path.Combine(stage, "custom-project.aseprite")) != "user art preserved" ||
+        !File.Exists(Path.Combine(backup, "aseprite.exe")))
+        throw new Exception("Fastpath must copy backup, never move it or discard user art.");
+    if (AsepriteBuildCache.HasPreviousInstallBackup(requestedInstall,
+        "v1.3.18.1", "1.3.18.1"))
+        throw new Exception("Backup from a different tag was selected.");
+    Console.WriteLine("PASS: instant previously-installed version staging, original backup unchanged.");
+}
+finally { try { Directory.Delete(restoreFixtures, true); } catch { } }
