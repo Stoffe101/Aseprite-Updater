@@ -101,26 +101,41 @@ public static class WorkshopLibrary
         log($"Uninstalled {tool.Name}. Full backup: {backup}");
     }
 
-    public static string ExtractPixelTownPalette(string root)
+    public static string ExtractPixelTownPalette(string root, bool fullDiagnostic = false)
     {
         if (!File.Exists(Path.Combine(root, "project.godot")))
             throw new FileNotFoundException("Select the PixelTown Godot project directory.");
         var source = Path.Combine(root, "art", "world_canvas.gd");
         if (!File.Exists(source))
             throw new FileNotFoundException("PixelTown's current art/world_canvas.gd wasn't found.", source);
-        // Extracts local source colors: no code or proprietary art is uploaded to
-        // GitHub or bundled in the publicly MIT-licensed Manager.
-        var matches = Regex.Matches(File.ReadAllText(source),
-            """Color\s*\(\s*["']#(?<rgb>[0-9a-fA-F]{6})(?:[0-9a-fA-F]{2})?["']""");
-        var colors = matches.Select(m => m.Groups["rgb"].Value.ToUpperInvariant())
-            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+        // The hand-authored scene currently contains many decorative, one-off
+        // colors. The twelve explicitly named constants are a more useful
+        // starting palette than the entire diagnostic color inventory.
+        // Everything is read locally: the proprietary game source is neither
+        // uploaded to GitHub nor bundled in this public MIT Manager repository.
+        var text = File.ReadAllText(source);
+        var pattern = fullDiagnostic
+            ? """Color\s*\(\s*["']#(?<rgb>[0-9a-fA-F]{6})(?:[0-9a-fA-F]{2})?["']"""
+            : """(?m)^\s*const\s+(?<name>[A-Z][A-Z0-9_]*)\s*:?=\s*Color\s*\(\s*["']#(?<rgb>[0-9a-fA-F]{6})(?:[0-9a-fA-F]{2})?["']""";
+        var colors = Regex.Matches(text, pattern).Select(m => new
+        {
+            Hex = m.Groups["rgb"].Value.ToUpperInvariant(),
+            Name = m.Groups["name"].Success ? m.Groups["name"].Value : "Draft"
+        }).DistinctBy(x => x.Hex, StringComparer.OrdinalIgnoreCase).ToArray();
         if (colors.Length is < 2 or > 256)
             throw new InvalidDataException($"Found {colors.Length} unique colors; expected 2–256.");
-        var text = new StringBuilder("GIMP Palette\nName: PixelTown Prototype (unapproved)\nColumns: 8\n");
-        text.AppendLine("# Extracted locally from PixelTown Godot procedural art; this is not a final approved palette.");
-        foreach (var hex in colors)
-            text.AppendLine($"{Convert.ToInt32(hex[..2],16),3} {Convert.ToInt32(hex.Substring(2,2),16),3} {Convert.ToInt32(hex.Substring(4,2),16),3} {hex}");
-        return text.ToString();
+        var name = fullDiagnostic ? "PixelTown Full Draft Diagnostic" : "PixelTown Core Named Colors";
+        var palette = new StringBuilder($"GIMP Palette\nName: {name}\nColumns: 8\n");
+        palette.AppendLine("# Local prototype colors; NOT an approved final palette. Art remains proprietary to PixelTown.");
+        foreach (var item in colors)
+        {
+            var hex = item.Hex;
+            palette.AppendLine($"{Convert.ToInt32(hex[..2],16),3} " +
+                $"{Convert.ToInt32(hex.Substring(2,2),16),3} " +
+                $"{Convert.ToInt32(hex.Substring(4,2),16),3} {item.Name}");
+        }
+        return palette.ToString();
     }
 
     public static void InstallPalette(string id, string display, string palette,
