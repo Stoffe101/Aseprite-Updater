@@ -22,6 +22,19 @@ See the [Actions tab](../../actions/workflows/windows.yml). Download the artifac
 
 Older published tags may use obsolete upstream build scripts, Skia versions or toolchains. The selection list is not a guarantee that every historical tag will compile with this manager. On a build failure, the currently installed copy is left untouched. Always keep independent backups of your work before downgrading because old Aseprite versions may not understand newly saved sprite formats.
 
+
+## Companion update center (v0.3.0)
+
+- **Check for updates:** fetch the official Aseprite release list and highlight a newer stable version if one exists.
+- **Update Aseprite to latest:** a dedicated button selects the latest stable release and starts the existing, independently verified compile-and-backup pipeline. Nothing is updated without confirmation.
+- **Curated theme gallery:** Catppuccin Mocha/Macchiato/Frappé/Latte, Dracula and Monaki. Download from theme maintainers' official GitHub sources, verify package metadata, and extract a restricted list of theme-related files into the *user* Aseprite extensions directory.
+- **Theme update checks:** compare installed manager-tracked revisions with upstream GitHub. Update managed themes separately from Aseprite. Local file changes block replacement, and original theme directories are retained as backups.
+- **Aseprite logo/icon repair:** use the official icon bundled with the upstream source-built Aseprite. Recreate the Windows Start Menu shortcut with the bundled icon.
+
+Theme settings and extension files are stored under %APPDATA%\Aseprite\extensions. Project/sprite files are not touched by the theme installer. Themes from third parties are not redistributed in our installer. Theme authors retain their copyrights and licenses. The app does not bundle the Aseprite logo, using the local source-installed icon instead.
+
+*This is an early-access implementation.* Theme API integration, custom edits, and Aseprite's version-specific theme compatibility still need end-to-end Windows testing. Version checking requires internet; source builds still require Git, CMake, Ninja, Visual Studio C++ tools, and a Windows SDK.
+
 ## Development
 
 1. Install the .NET 8 SDK on a Windows 11 development machine.
