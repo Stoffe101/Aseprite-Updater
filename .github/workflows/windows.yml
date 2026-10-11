@@ -43,6 +43,31 @@ jobs:
         run: |
           dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --overlay-integration
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test Godot Wizard loading in actual Godot 4.7.2 editor
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP 'godot-4.7.2.zip'
+          Invoke-WebRequest 'https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win64.exe.zip' -OutFile $zip
+          $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($sha -ne '731980f9608d61333e5baf54a2ef17210acc7a538446c0cb9969f002aca1e953') {
+            throw "Godot ZIP checksum mismatch: $sha"
+          }
+          $bin = Join-Path $env:RUNNER_TEMP 'godot-wizard-bin'
+          Expand-Archive $zip $bin
+          $godot = Get-ChildItem $bin -Recurse -Filter '*win64_console.exe' | Select-Object -First 1
+          if ($null -eq $godot) { throw 'Pinned Godot executable missing' }
+          dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release -- --godot-editor-fixture
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create the Godot editor fixture' }
+          $fixture = Join-Path $env:TEMP 'AsepriteWizardGodotEditorCI'
+          $logPath = Join-Path $env:RUNNER_TEMP 'godot-wizard-editor.log'
+          & $godot.FullName --headless --editor --path $fixture --quit-after 55 --log-file $logPath 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'godot-wizard-stdout.log')
+          if ($LASTEXITCODE -ne 0) { throw "Godot editor exited with code $LASTEXITCODE" }
+          $log = (Get-Content $logPath -Raw) + (Get-Content (Join-Path $env:RUNNER_TEMP 'godot-wizard-stdout.log') -Raw)
+          if ($log -match '(?im)(SCRIPT ERROR|Parse Error|ERROR:|Failed loading script)') {
+            throw "Godot reported plugin errors: $log"
+          }
+          Write-Host 'PASS: Godot 4.7.2 loaded installed Wizard without reported parser/editor errors.'
       - name: Restore WPF app
         run: dotnet restore src/AsepriteManager/AsepriteManager.csproj
       - name: Build WPF app
