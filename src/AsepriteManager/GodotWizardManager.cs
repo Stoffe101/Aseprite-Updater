@@ -127,13 +127,24 @@ public sealed class GodotWizardManager
                     File.Move(tmp, receiptPath, overwrite: true);
                 }
                 finally { if (File.Exists(tmp)) File.Delete(tmp); }
-                if (hadOld) Directory.Delete(old, recursive: true);
             }
             catch
             {
                 if (Directory.Exists(target)) Directory.Delete(target, recursive: true);
                 if (hadOld && Directory.Exists(old)) Directory.Move(old, target);
                 throw;
+            }
+            // Cleanup is deliberately outside rollback: the new plugin and
+            // revision receipt are already committed. Failure to remove the
+            // temporary old directory must not mark the new version as failed.
+            if (hadOld && Directory.Exists(old))
+            {
+                try { Directory.Delete(old, recursive: true); }
+                catch (Exception ex)
+                {
+                    log("Installed successfully, but the old plugin directory remains at " +
+                        old + ": " + ex.Message);
+                }
             }
             log("Installed Godot 4 Aseprite Wizard at " + target +
                 (backup == null ? "" : ". Previous version backed up to " + backup) +
