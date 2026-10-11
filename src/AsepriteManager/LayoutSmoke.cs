@@ -67,9 +67,7 @@ public static class LayoutSmoke
                 (Label: "profiles", Section: center.ProfilesPage)
             })
             {
-                center.UpdatesPage.Visibility = pane.Label == "updates" ? Visibility.Visible : Visibility.Collapsed;
-                center.RecoveryPage.Visibility = pane.Label == "recovery" ? Visibility.Visible : Visibility.Collapsed;
-                center.ProfilesPage.Visibility = pane.Label == "profiles" ? Visibility.Visible : Visibility.Collapsed;
+                center.ShowPage(pane.Label);
                 var root = (FrameworkElement)center.Content;
                 root.Measure(new Size(width, height));
                 root.Arrange(new Rect(0, 0, width, height));
