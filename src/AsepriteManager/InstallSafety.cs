@@ -34,10 +34,21 @@ public static class InstallSafety
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
             ManagerService.DataRoot
         };
+        // Reject protected folders AND ancestors to avoid renaming whole profiles.
         if (protectedDirs.Where(x => !string.IsNullOrWhiteSpace(x)).Any(x =>
-            string.Equals(Path.GetFullPath(x).TrimEnd('\\'), full.TrimEnd('\\'),
-                StringComparison.OrdinalIgnoreCase)))
+        {
+            var protectedPath = Path.GetFullPath(x).TrimEnd('\\');
+            var candidate = full.TrimEnd('\\');
+            return string.Equals(protectedPath, candidate, StringComparison.OrdinalIgnoreCase) ||
+                protectedPath.StartsWith(candidate + "\\", StringComparison.OrdinalIgnoreCase);
+        }))
             throw new InvalidOperationException("Choose a dedicated Aseprite application folder, not a personal or system folder.");
+        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        if (full.StartsWith(windows.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Installing inside the Windows system directory is not allowed.");
+        if (full.StartsWith(ManagerService.DataRoot.TrimEnd('\\') + "\\",
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Choose a folder outside Manager's temporary/build-data directory.");
         if (full.Contains(@"\steamapps\", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("A Steam-managed installation cannot be replaced by this source-build manager.");
         if (Directory.Exists(full) &&
