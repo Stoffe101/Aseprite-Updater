@@ -37,7 +37,7 @@ try
     File.WriteAllText(customTheme, "MY THEME");
     File.WriteAllText(project, "MY SPRITE");
     File.WriteAllText(Path.Combine(staged, "aseprite.exe"), "NEW");
-    InstallSafety.PreserveUserContent(installed, staged);
+    InstallSafety.PreserveUserContent(installFolder, staged);
     if (File.ReadAllText(Path.Combine(staged, "data", "themes", "my-theme.xml")) != "MY THEME")
         throw new Exception("Theme was not preserved.");
     if (File.ReadAllText(Path.Combine(staged, "Sprites", "my-art.aseprite")) != "MY SPRITE")
