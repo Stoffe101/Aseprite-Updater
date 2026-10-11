@@ -70,6 +70,7 @@ public partial class MainWindow : Window
         VersionPicker.IsEnabled = !busy && _releases.Count > 0;
         ThemePicker.IsEnabled = !busy;
         InstallThemeButton.IsEnabled = !busy;
+        InstallRecommendedButton.IsEnabled = !busy;
         CheckThemesButton.IsEnabled = !busy;
         UpdateThemesButton.IsEnabled = !busy && ThemeCatalog.Curated.Any(_themeManager.IsInstalled);
         RefreshButtons();
@@ -320,6 +321,45 @@ public partial class MainWindow : Window
             _manager.Log("THEME ERROR: " + ex);
             MessageBox.Show(this, ex.Message, "Theme installation failed",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally { SetBusy(false); UpdateThemeDetail(); }
+    }
+
+    private async void InstallRecommended_Click(object sender, RoutedEventArgs e)
+    {
+        var recommended = ThemeCatalog.Curated.Where(x =>
+            x.Id is "cat-mocha" or "dracula" or "monaki").ToArray();
+        if (MessageBox.Show(this,
+            "Install these community themes?\n\n" +
+            "• Catppuccin Mocha\n• Dracula\n• Monaki\n\n" +
+            "All downloads come from their maintainers' GitHub repositories. " +
+            "No sprites or user projects are modified. Close Aseprite first.",
+            "Install recommended themes", MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+        SetBusy(true);
+        var failed = new List<string>();
+        try
+        {
+            for (int i = 0; i < recommended.Length; i++)
+            {
+                var theme = recommended[i];
+                StatusTitle.Text = "Installing recommended themes";
+                StatusDetail.Text = $"{i + 1}/{recommended.Length}: {theme.Name}";
+                WorkProgress.Value = i * 100.0 / recommended.Length;
+                try { await Task.Run(() => _themeManager.InstallOrUpdateAsync(theme, CancellationToken.None)); }
+                catch (Exception ex)
+                {
+                    failed.Add(theme.Name + ": " + ex.Message);
+                    _manager.Log("RECOMMENDED THEME ERROR: " + theme.Name + " " + ex);
+                }
+            }
+            _availableThemeUpdates = new Dictionary<string, bool>();
+            StatusTitle.Text = failed.Count == 0 ? "Recommended themes installed" : "Some themes were skipped";
+            StatusDetail.Text = failed.Count == 0
+                ? "Open Aseprite → Edit → Preferences → Theme to choose your new look."
+                : string.Join(" | ", failed);
+            WorkProgress.Value = 100;
         }
         finally { SetBusy(false); UpdateThemeDetail(); }
     }
