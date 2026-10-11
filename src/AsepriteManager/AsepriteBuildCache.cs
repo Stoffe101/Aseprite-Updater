@@ -227,11 +227,15 @@ public static class AsepriteBuildCache
 
     private static CacheManifest? ReadManifest(string dir)
     {
-        var file = Path.Combine(dir, "manifest.json");
-        if (!File.Exists(file) || new FileInfo(file).Length > 1_000_000)
-            return null;
-        var item = JsonSerializer.Deserialize<CacheManifest>(File.ReadAllText(file));
-        return item?.Schema == 1 ? item : null;
+        try
+        {
+            var file = Path.Combine(dir, "manifest.json");
+            if (!File.Exists(file) || new FileInfo(file).Length > 1_000_000)
+                return null;
+            var item = JsonSerializer.Deserialize<CacheManifest>(File.ReadAllText(file));
+            return item?.Schema == 1 ? item : null;
+        }
+        catch (Exception) { return null; } // Corrupt cache must never block a rebuild.
     }
 
     private static bool ValidateFiles(string root, Dictionary<string, FileDigest> expected)
