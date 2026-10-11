@@ -363,6 +363,22 @@ public partial class LibraryWindow : Window
             ArgumentList = { folder }
         });
     }
+    private void Navigate_Click(object sender, RoutedEventArgs e)
+    {
+        var section = (sender as System.Windows.Controls.Button)?.Tag as string;
+        FrameworkElement? target = section switch
+        {
+            "tools" => ToolSection,
+            "palettes" => GallerySection,
+            "extensions" => ExtensionSection,
+            "godot" => GodotSection,
+            "brushes" => BrushSection,
+            "backup" => BackupSection,
+            _ => null
+        };
+        target?.BringIntoView();
+    }
+
     private void PaletteSearch_Changed(object sender,
         System.Windows.Controls.TextChangedEventArgs e)
     {
