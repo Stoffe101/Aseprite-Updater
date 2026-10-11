@@ -213,9 +213,13 @@ public partial class MainWindow : Window
         {
             StatusTitle.Text = current > 0 ? "Older version selected" :
                 _installedVersion is null ? "Ready for first installation" : "Version change available";
-            StatusDetail.Text = current > 0
-                ? "Switching backward can make sprites saved by newer versions incompatible. Your existing application folder will be backed up."
-                : $"Aseprite {_release.Version} is ready to build from official source. Your existing installation will be backed up.";
+            var cached = AsepriteBuildCache.HasBuild(_release.Tag, _release.Version) ||
+                AsepriteBuildCache.HasPreviousInstallBackup(TargetPath, _release.Tag, _release.Version);
+            StatusDetail.Text = cached
+                ? $"A local Aseprite {_release.Version} build is cached. Manager will verify its files before switching; the current installation will be backed up."
+                : current > 0
+                    ? "Older versions may not open sprites saved by newer versions. The first build may take time; successful builds will be cached for future switches."
+                    : $"Aseprite {_release.Version} can be built from official source. Repeated switches can reuse verified local builds.";
         }
     }
 
@@ -548,6 +552,13 @@ public partial class MainWindow : Window
             Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = target, UseShellExecute = true });
         }
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Launch failed"); }
+    }
+
+    private void OpenBuildPerformance_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+        new BuildCacheWindow(_manager) { Owner = this }.ShowDialog();
+        UpdateSelectedStatus();
     }
 
     private void OpenControlCenter_Click(object sender, RoutedEventArgs e)

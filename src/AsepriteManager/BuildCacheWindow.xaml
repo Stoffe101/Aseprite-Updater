@@ -1,0 +1,83 @@
+<Window x:Class="AsepriteManager.BuildCacheWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Aseprite Manager • Build Performance" Width="810" Height="715"
+        MinWidth="650" MinHeight="560" WindowStartupLocation="CenterOwner"
+        Background="#0D1424" Foreground="#F1F4FB" FontFamily="Segoe UI" FontSize="14">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="MinWidth" Value="145"/>
+            <Setter Property="Height" Value="39"/>
+            <Setter Property="Margin" Value="0,0,9,10"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Foreground" Value="#F3F5FC"/>
+            <Setter Property="Background" Value="#405378"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#E8EDF8"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="5"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Border Background="#8869D7"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="25,25,25,24">
+                <TextBlock Text="BUILD PERFORMANCE" Foreground="#BCA7FF" FontWeight="Bold" FontSize="12"/>
+                <TextBlock Text="Faster version switching" FontSize="26" FontWeight="Bold"
+                           Margin="0,6,0,5" TextWrapping="Wrap"/>
+                <TextBlock Text="Verified compiled versions can be restored without rebuilding. Shared Skia libraries and optional sccache shorten new builds."
+                           Foreground="#B2C0D7" TextWrapping="Wrap" Margin="0,0,0,17"/>
+                <Border Padding="17" CornerRadius="12" Background="#18243A" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="LOCAL BUILD CACHES" FontWeight="Bold"
+                                   Foreground="#C8B8FF" FontSize="12"/>
+                        <TextBlock x:Name="CacheSummary" Text="Scanning local storage..."
+                                   Foreground="#E2E9FB" TextWrapping="Wrap" Margin="0,9,0,13"/>
+                        <WrapPanel>
+                            <Button Content="Refresh cache sizes" Click="RefreshCache_Click"/>
+                            <Button Content="Clear compiled builds" Click="ClearBuilds_Click" MinWidth="188"/>
+                            <Button Content="Clear shared Skia" Click="ClearSkia_Click" MinWidth="169"/>
+                            <Button Content="Clear compiler cache" Click="ClearCompiler_Click" MinWidth="190"/>
+                        </WrapPanel>
+                        <TextBlock Text="Cleaning cache never deletes your installed Aseprite, saved sprites, themes, configurations or previous-install backups. Future builds may take longer afterward."
+                                   Foreground="#91A5C6" TextWrapping="Wrap" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border Padding="17" CornerRadius="12" Background="#18243A" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="COMPILATION OPTIONS" FontWeight="Bold"
+                                   Foreground="#C8B8FF" FontSize="12" Margin="0,0,0,13"/>
+                        <TextBlock Text="Ninja parallel jobs" Margin="0,0,0,7" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="ParallelJobs" Width="230" HorizontalAlignment="Left"
+                                  Height="38" Background="#273754" Foreground="#181E30" Margin="0,0,0,12">
+                            <ComboBoxItem Tag="0" Content="Auto (recommended)"/>
+                            <ComboBoxItem Tag="2" Content="2 jobs (low memory)"/>
+                            <ComboBoxItem Tag="4" Content="4 jobs"/>
+                            <ComboBoxItem Tag="6" Content="6 jobs"/>
+                            <ComboBoxItem Tag="8" Content="8 jobs"/>
+                            <ComboBoxItem Tag="12" Content="12 jobs"/>
+                            <ComboBoxItem Tag="16" Content="16 jobs"/>
+                        </ComboBox>
+                        <CheckBox x:Name="UseSccache" Content="Use sccache compiler caching when available"/>
+                        <TextBlock x:Name="SccacheStatus" Foreground="#B0BDDB" TextWrapping="Wrap"
+                                   Margin="0,0,0,12"/>
+                        <WrapPanel>
+                            <Button Content="Save build settings" Background="#7054C0"
+                                    Click="SaveSettings_Click" MinWidth="193"/>
+                            <Button Content="Install sccache (winget)" Click="InstallSccache_Click"
+                                    MinWidth="200"/>
+                        </WrapPanel>
+                        <TextBlock Text="sccache uses a local 10 GB cache budget and may have fewer cache hits on older MSVC build configurations. It is optional, and failures won't delete an existing Aseprite installation."
+                                   Foreground="#91A5C6" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock x:Name="OperationStatus" Text="Ready." Foreground="#C1B0FF"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

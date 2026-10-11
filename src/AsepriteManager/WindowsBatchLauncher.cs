@@ -23,7 +23,8 @@ public static class WindowsBatchLauncher
     }
 
     public static void WriteAsepriteWrapper(
-        string sourceDirectory, string vcvarsBatch, string gitBash, IEnumerable<string> toolFolders)
+        string sourceDirectory, string vcvarsBatch, string gitBash, IEnumerable<string> toolFolders,
+        BuildPerformance.Options? performance = null, string? sccacheExe = null)
     {
         if (!Directory.Exists(sourceDirectory))
             throw new DirectoryNotFoundException(sourceDirectory);
@@ -34,16 +35,32 @@ public static class WindowsBatchLauncher
         if (!File.Exists(gitBash)) throw new FileNotFoundException("Git Bash missing.", gitBash);
         var extra = string.Join(";", toolFolders.Where(Directory.Exists)
             .Distinct(StringComparer.OrdinalIgnoreCase));
-        var lines = new[]
+        var settings = BuildPerformance.Validate(performance ?? BuildPerformance.Read());
+        var lines = new List<string>
         {
             "@echo off",
             "setlocal DisableDelayedExpansion",
             $"set \"PATH={extra};%PATH%\"",
-            $"call \"{vcvarsBatch}\"",
-            "if errorlevel 1 exit /b %errorlevel%",
-            $"\"{gitBash}\" ./build.sh --auto --norun",
-            "exit /b %errorlevel%"
+            $"set \"CMAKE_BUILD_PARALLEL_LEVEL={BuildPerformance.EffectiveJobs(settings)}\""
         };
+        if (settings.UseCompilerCache && sccacheExe != null && File.Exists(sccacheExe))
+        {
+            if (sccacheExe.Contains('%') || sccacheExe.Contains('"'))
+                throw new InvalidOperationException("Compiler cache path contains unsupported batch characters.");
+            var cache = BuildPerformance.CompilerCacheFolder;
+            if (cache.Contains('%') || cache.Contains('"'))
+                throw new InvalidOperationException("Compiler cache directory has unsupported characters.");
+            Directory.CreateDirectory(cache);
+            lines.Add($"set \"SCCACHE_DIR={cache}\"");
+            lines.Add("set \"SCCACHE_CACHE_SIZE=10G\"");
+            lines.Add("set \"SCCACHE_IGNORE_SERVER_IO_ERROR=1\"");
+            lines.Add($"set \"CMAKE_C_COMPILER_LAUNCHER={sccacheExe}\"");
+            lines.Add($"set \"CMAKE_CXX_COMPILER_LAUNCHER={sccacheExe}\"");
+        }
+        lines.Add($"call \"{vcvarsBatch}\"");
+        lines.Add("if errorlevel 1 exit /b %errorlevel%");
+        lines.Add($"\"{gitBash}\" ./build.sh --auto --norun");
+        lines.Add("exit /b %errorlevel%");
         File.WriteAllLines(Path.Combine(sourceDirectory, ScriptName), lines);
     }
 }

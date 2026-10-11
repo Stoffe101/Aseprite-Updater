@@ -72,6 +72,16 @@ Each executable third-party component requires user confirmation and carries a d
 
 No sprite or asset generator is included. Auto-updating the Manager executable and unattended Update All are not claimed; both require verified release distribution and rollback checks. Read [Control Center v0.6 documentation](docs/CONTROL_CENTER_V06.md) for complete safety notes and outstanding testing.
 
+## Fast Version Switching (v0.6.2)
+
+- **Previously compiled versions:** keep a local SHA-256 verified copy, restore to staging and verify the executable before swapping. Up to five versions or 3 GiB cached, with LRU cleanup. No binaries are redistributed.
+- **Persistent Skia downloads:** NTFS junction into a cache keyed to the full upstream Skia tag means repeated source builds can reuse compatible dependencies, despite the temporary source tree being removed.
+- **Optional Mozilla sccache:** install through winget by choice; enables C/C++ compiler object caching via CMake and Ninja when supported by the local MSVC toolchain. No guaranteed hit rate across all tags.
+- **Parallelism:** automatic Ninja job setting (2–12) or configurable 2–16 jobs.
+- **Build Performance window:** cache sizes, clear only caches (not artwork, installed versions, settings or backups), settings and optional compiler cache installation.
+
+Source-building a version for the very first time still takes time; repeated switches to locally cached versions should avoid recompiling. See [docs/FAST_BUILDS_V062.md](docs/FAST_BUILDS_V062.md) for cache safety, tests and limitations.
+
 ## Development
 
 1. Install the .NET 8 SDK on a Windows 11 development machine.

@@ -195,6 +195,25 @@
                     </Grid>
                 </Border>
 
+                <Border Background="#152C3A" CornerRadius="12" BorderBrush="#537D83"
+                        BorderThickness="1" Padding="15" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="215"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
+                            <TextBlock Text="BUILD PERFORMANCE" FontWeight="Bold" FontSize="13"
+                                       Foreground="#A9E0D4"/>
+                            <TextBlock Text="Instant cached version switching, shared Skia, optional sccache and disk cleanup."
+                                       Foreground="#B9CBD6" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Optimize builds"
+                                Background="#416A76" VerticalAlignment="Center"
+                                Click="OpenBuildPerformance_Click"/>
+                    </Grid>
+                </Border>
+
                 <Border Background="#1C2945" CornerRadius="12" BorderBrush="#53628A"
                         BorderThickness="1" Padding="15" Margin="0,0,0,16">
                     <Grid>
