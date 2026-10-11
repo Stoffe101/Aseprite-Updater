@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     private DependencyReport? _dependencies;
     private string? _installedVersion;
     private bool _busy;
+    private CancellationTokenSource? _pathDebounce;
 
     public MainWindow()
     {
@@ -91,10 +92,18 @@ public partial class MainWindow : Window
         finally { RefreshButtons(); }
     }
 
-    private void InstallPath_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    private async void InstallPath_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
         if (!IsInitialized) return;
-        _ = RefreshLocalAsync();
+        _pathDebounce?.Cancel();
+        var tokenSource = new CancellationTokenSource();
+        _pathDebounce = tokenSource;
+        try
+        {
+            await Task.Delay(350, tokenSource.Token);
+            if (!tokenSource.IsCancellationRequested) await RefreshLocalAsync();
+        }
+        catch (OperationCanceledException) { }
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
