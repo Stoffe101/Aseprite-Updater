@@ -133,32 +133,66 @@ public sealed class ManagerService
     {
         var winget = FindExe("winget.exe");
         if (winget is null)
-            throw new InvalidOperationException("Windows Package Manager (winget) is missing. Install 'App Installer' from Microsoft, then retry.");
-        var missing = new List<(string Name, string Id, string? Override)>();
-        if (deps.Git == null) missing.Add(("Git", "Git.Git", null));
-        if (deps.CMake == null) missing.Add(("CMake", "Kitware.CMake", null));
-        if (deps.Ninja == null) missing.Add(("Ninja", "Ninja-build.Ninja", null));
-        if (deps.VsDevCmd == null)
-            missing.Add(("Visual Studio 2022 C++ Build Tools", "Microsoft.VisualStudio.2022.BuildTools",
-                "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --add Microsoft.VisualStudio.Component.Windows11SDK.26100"));
+            throw new InvalidOperationException("Windows Package Manager is not available. Install Microsoft's 'App Installer' first, then retry.");
 
-        for (int i = 0; i < missing.Count; i++)
+        var basic = new List<(string Name, string Id)>();
+        if (deps.Git == null) basic.Add(("Git for Windows (includes Git Bash)", "Git.Git"));
+        if (deps.CMake == null) basic.Add(("CMake", "Kitware.CMake"));
+        if (deps.Ninja == null) basic.Add(("Ninja", "Ninja-build.Ninja"));
+        var count = basic.Count + (deps.VsDevCmd == null ? 1 : 0);
+        var index = 0;
+
+        foreach (var (name, id) in basic)
         {
             ct.ThrowIfCancellationRequested();
-            var tool = missing[i];
-            progress.Report(new WorkStatus((i * 100) / missing.Count, "Installing prerequisites", tool.Name + " (UAC may ask for approval)"));
-            Log($"Installing {tool.Name} with Windows Package Manager...");
-            var args = new List<string> { "install", "--exact", "--id", tool.Id, "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity" };
-            if (tool.Override != null)
-            {
-                args.Add("--override");
-                args.Add(tool.Override);
-            }
-            else args.Add("--silent");
-            await RunAsync(winget, args, DataRoot, ct);
+            progress.Report(new WorkStatus(100 * index++ / Math.Max(1, count),
+                "Installing prerequisites", name + " (Windows may request approval)"));
+            Log($"Installing {name} ({id}) from the official winget catalog...");
+            await RunAsync(winget, new[] { "install", "--exact", "--id", id,
+                "--source", "winget", "--accept-package-agreements",
+                "--accept-source-agreements", "--disable-interactivity", "--silent" }, DataRoot, ct);
             RefreshEnvironmentPath();
         }
-        progress.Report(new WorkStatus(100, "Prerequisites", "Finished. Rechecking installed tools..."));
+
+        if (deps.VsDevCmd == null)
+        {
+            progress.Report(new WorkStatus(100 * index / Math.Max(1, count),
+                "Installing Microsoft C++ tools",
+                "Installing or modifying Visual Studio 2022 C++ Build Tools and the Windows SDK..."));
+            // Existing Community/Professional/BuildTools instances must be MODIFIED.
+            // 'winget install' on an already installed instance cannot add the missing workload.
+            var existingInstall = GetExistingVisualStudioInstallPath();
+            var vsSetup = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.ProgramFilesX86),
+                @"Microsoft Visual Studio\Installer\setup.exe");
+            var components = new[] {
+                "--add", "Microsoft.VisualStudio.Workload.VCTools",
+                "--add", "Microsoft.VisualStudio.Component.Windows11SDK.26100",
+                "--includeRecommended", "--norestart"
+            };
+            if (existingInstall != null && File.Exists(vsSetup))
+            {
+                Log($"Modifying existing Visual Studio 2022 installation at: {existingInstall}");
+                await RunAsync(vsSetup, new[] { "modify", "--installPath", existingInstall,
+                    "--passive" }.Concat(components), DataRoot, ct);
+            }
+            else
+            {
+                const string options = "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.Windows11SDK.26100 --includeRecommended";
+                Log("Installing Visual Studio 2022 Build Tools and the required Windows SDK.");
+                await RunAsync(winget, new[] { "install", "--exact", "--id",
+                    "Microsoft.VisualStudio.2022.BuildTools", "--source", "winget",
+                    "--accept-package-agreements", "--accept-source-agreements",
+                    "--override", options }, DataRoot, ct);
+            }
+        }
+        RefreshEnvironmentPath();
+        progress.Report(new WorkStatus(100, "Prerequisites",
+            "Finished. Checking that every required compiler tool and SDK is present..."));
+        var check = ScanDependencies();
+        if (!check.Complete)
+            throw new InvalidOperationException($"Some required tools are still missing: {check.Summary}. " +
+                "A reboot or completing the Visual Studio Installer may be required.");
     }
 
     public async Task InstallOrUpdateAsync(string requestedDir, ReleaseInfo release, IProgress<WorkStatus> progress, CancellationToken ct)
@@ -385,6 +419,31 @@ public sealed class ManagerService
         return Directory.EnumerateDirectories(kitRoot).Any(dir =>
             Directory.Exists(Path.Combine(dir, "um")) &&
             Directory.Exists(Path.Combine(dir, "ucrt")));
+    }
+
+    private static string? GetExistingVisualStudioInstallPath()
+    {
+        var vswhere = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            @"Microsoft Visual Studio\Installer\vswhere.exe");
+        if (!File.Exists(vswhere)) return null;
+        try
+        {
+            using var p = new Process();
+            p.StartInfo = new ProcessStartInfo(vswhere)
+            {
+                UseShellExecute = false, RedirectStandardOutput = true,
+                CreateNoWindow = true
+            };
+            foreach (var arg in new[] { "-latest", "-version", "[17.0,18.0)",
+                "-products", "*", "-property", "installationPath" })
+                p.StartInfo.ArgumentList.Add(arg);
+            p.Start();
+            var output = p.StandardOutput.ReadToEnd().Trim();
+            if (!p.WaitForExit(10000)) { p.Kill(); return null; }
+            return p.ExitCode == 0 && Directory.Exists(output) ? output : null;
+        }
+        catch { return null; }
     }
 
     private static string? GetVsDevCmd()
