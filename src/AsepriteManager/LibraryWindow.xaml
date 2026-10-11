@@ -203,6 +203,10 @@
                                             Click="PreviewPalette_Click"/>
                                     <Button x:Name="InstallPaletteButton" Content="Install preset"
                                             Click="InstallGalleryPalette_Click" Background="#6752B4"/>
+                                    <Button x:Name="RemoveGalleryPaletteButton" Content="Uninstall copy"
+                                            Click="RemoveGalleryPalette_Click"/>
+                                    <Button x:Name="UpdateGalleryPalettesButton" Content="Update managed"
+                                            Click="UpdateGalleryPalettes_Click"/>
                                     <Button Content="Source" Click="OpenPaletteSource_Click"/>
                                 </WrapPanel>
                             </StackPanel>
