@@ -37,7 +37,7 @@ These scripts are examples, not an Aseprite-endorsed professional production too
 
 ### Palettes shipped in v0.4.0
 
-- **PixelTown prototype color extractor:** reads user-selected local \`project.godot\` and \`art/world_canvas.gd\`, extracts unique explicit six-/eight-character \`Color("#...")\` literals, produces GIMP Palette .gpl in an Aseprite **palette extension** under \`%APPDATA%\Aseprite\extensions\`. It does NOT copy PixelTown colors into this public GitHub repository, send data online or modify the game project.
+- **PixelTown prototype color extractor:** reads user-selected local \`project.godot\` and \`art/world_canvas.gd\`, extracts the 12 named core constants by default, with an optional full 206-color diagnostic inventory, from explicit six-/eight-character \`Color("#...")\` literals, produces GIMP Palette .gpl in an Aseprite **palette extension** under \`%APPDATA%\Aseprite\extensions\`. It does NOT copy PixelTown colors into this public GitHub repository, send data online or modify the game project.
 - **Import local GPL palette:** user provides a file already obtained with permission. Validate basic GIMP Palette format and RGB bounds, then create an Aseprite \`contributes.palettes\` extension. Do not scrape or redistribute community palette art.
 
 Aseprite already bundles several palette families, including AAP and Arne; **don't claim that repackaging default palettes adds value**. For browsing more colors, link to [Lospec Palette List](https://lospec.com/palette-list/) and respect creators' individual licensing/terms rather than bulk fetching arbitrary palettes.
