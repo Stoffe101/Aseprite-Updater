@@ -205,3 +205,25 @@ finally
 {
     try { Directory.Delete(tempTheme, true); } catch { }
 }
+
+
+// Optional GitHub-backed check of the actual community theme archives.
+// Only executes when explicitly requested by CI; no settings or installs.
+if (args.Contains("--theme-integration"))
+{
+    var catalog = new ThemeCatalog();
+    foreach (var theme in ThemeCatalog.Curated)
+    {
+        var resolved = await catalog.ResolveAsync(theme, CancellationToken.None);
+        var archive = await catalog.DownloadAsync(resolved, CancellationToken.None);
+        var dir = Path.Combine(Path.GetTempPath(),
+            "Aseprite-Community-Theme-Test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(dir);
+            ThemeManager.UnpackVerifiedTheme(archive, dir);
+            Console.WriteLine($"PASS: real upstream {theme.Name}: {resolved.Revision}");
+        }
+        finally { try { Directory.Delete(dir, recursive: true); } catch { } }
+    }
+}
