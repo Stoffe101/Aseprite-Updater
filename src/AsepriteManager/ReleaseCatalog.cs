@@ -7,8 +7,12 @@ namespace AsepriteManager;
 
 public sealed record ReleaseInfo(string Tag, string Version, bool IsPreRelease, bool IsLatest, DateTimeOffset? PublishedAt)
 {
-    public string DisplayName => $"v{Version}" +
-        (IsLatest ? "   •   LATEST" : IsPreRelease ? "   •   Preview" : "");
+    public string DisplayName => IsLatest ? $"LATEST  •  v{Version}" :
+        IsPreRelease ? $"v{Version}  •  Preview" : $"v{Version}";
+
+    // The custom ComboBox template uses SelectionBoxItem.ToString() for its
+    // collapsed selected item, while DisplayMemberPath is used for the popup.
+    public override string ToString() => DisplayName;
 }
 
 public sealed class ReleaseCatalog
