@@ -385,9 +385,13 @@ public sealed class ManagerService
         var current = Environment.GetEnvironmentVariable("PATH") ?? "";
         var machine = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine) ?? "";
         var user = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "";
-        var pieces = new[] { current, machine, user,
+        var parts = new[] { current, machine, user,
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WinGet\Links"),
             @"C:\Program Files\Git\cmd", @"C:\Program Files\CMake\bin" };
-        Environment.SetEnvironmentVariable("PATH", string.Join(";", pieces.Where(s => !string.IsNullOrWhiteSpace(s))));
+        var unique = parts.SelectMany(s => s.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            .Select(s => s.Trim().Trim('"'))
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+        Environment.SetEnvironmentVariable("PATH", string.Join(";", unique));
     }
 }
