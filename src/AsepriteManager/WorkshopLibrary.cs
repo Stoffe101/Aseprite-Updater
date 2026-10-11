@@ -35,7 +35,15 @@ public static class WorkshopLibrary
             "Organize complex character and equipment layers; test on an asset copy.","Merge Down with Name Of Top Layer.lua"),
         new LibraryTool("stack-sprites","Stack All Open Sprites","Workflow",
             "Combine currently open sprites into one new layered sprite.",
-            "Compare villager, guard and object sprite variations without changing source files.","Stack All Sprites in One.lua")
+            "Compare villager, guard and object sprite variations without changing source files.","Stack All Sprites in One.lua"),
+        new LibraryTool("glass-floor","Glass Floor Reflection","Environment",
+            "Create a mirrored semi-transparent floor layer from selected layers.",
+            "Prototype lake reflections and crystal-cave water. This modifies the open sprite: use a copy.",
+            "Glass Floor.lua"),
+        new LibraryTool("touch-toolbar","Touch Toolbar","Accessibility",
+            "Open a compact Undo/Redo and timeline navigation toolbar.",
+            "Useful for pen/tablet workflows and small laptop screens.",
+            "Touch Toolbar.lua")
     };
     // Safe default pack remains focused; optional tools are installable individually.
     public static IReadOnlyList<LibraryTool> StarterTools => Tools.Take(4).ToArray();
