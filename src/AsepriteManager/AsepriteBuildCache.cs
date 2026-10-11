@@ -82,6 +82,70 @@ public static class AsepriteBuildCache
         }
     }
 
+    public static bool HasPreviousInstallBackup(string installDir, string tag, string version)
+    {
+        return FindBackup(installDir, tag, version) != null;
+    }
+
+    /// <summary>
+    /// Previously-installed builds already exist in retained full backup
+    /// folders. Check their manager release marker, copy one into independent
+    /// staging, then caller MUST run aseprite.exe --version before swapping.
+    /// The backup is never moved or deleted and cannot be an arbitrary folder.
+    /// </summary>
+    public static bool TryStagePreviousInstall(string installDir, string tag, string version,
+        string stage, Action<string> log)
+    {
+        if (Directory.Exists(stage))
+            throw new IOException("Previous-install staging already exists.");
+        var source = FindBackup(installDir, tag, version);
+        if (source == null) return false;
+        try
+        {
+            CopyTree(source, stage);
+            log("FAST PATH: copied previous complete local installation for " +
+                version + ". Executable version must still be verified before activation.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log("Previous-install backup couldn't be staged: " + ex.Message +
+                ". Falling back to a source build.");
+            TryDelete(stage);
+            return false;
+        }
+    }
+
+    private static string? FindBackup(string installDir, string tag, string version)
+    {
+        try
+        {
+            var full = Path.GetFullPath(installDir).TrimEnd(Path.DirectorySeparatorChar);
+            var parent = Path.GetDirectoryName(full)!;
+            if (!Directory.Exists(parent)) return null;
+            var mask = Path.GetFileName(full) + ".backup-*";
+            foreach (var dir in Directory.EnumerateDirectories(parent, mask)
+                .OrderByDescending(Directory.GetLastWriteTimeUtc).Take(80))
+            {
+                if ((File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0) continue;
+                var executable = Path.Combine(dir, "aseprite.exe");
+                var marker = Path.Combine(dir, "aseprite-manager.json");
+                if (!File.Exists(executable) || !File.Exists(marker) ||
+                    new FileInfo(marker).Length > 8_000) continue;
+                using var metadata = JsonDocument.Parse(File.ReadAllText(marker));
+                if (metadata.RootElement.GetProperty("version").GetString() == version &&
+                    metadata.RootElement.GetProperty("release").GetString() == tag)
+                    return dir;
+            }
+        }
+        catch
+        {
+            // Corrupt or missing backup metadata should never prevent a
+            // verified official source build.
+        }
+        return null;
+    }
+
     public static void Store(string tag, string version, string buildFolder,
         Action<string> log)
     {
