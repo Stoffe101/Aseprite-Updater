@@ -11,5 +11,6 @@
     <Compile Include="../../src/AsepriteManager/ReleaseCatalog.cs" Link="ReleaseCatalog.cs" />
     <Compile Include="../../src/AsepriteManager/WindowsBatchLauncher.cs" Link="WindowsBatchLauncher.cs" />
     <Compile Include="../../src/AsepriteManager/ThemeManager.cs" Link="ThemeManager.cs" />
+    <Compile Include="../../src/AsepriteManager/WorkshopLibrary.cs" Link="WorkshopLibrary.cs" />
   </ItemGroup>
 </Project>
