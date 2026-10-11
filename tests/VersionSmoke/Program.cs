@@ -640,3 +640,104 @@ try
 }
 catch (InvalidDataException) { }
 Console.WriteLine("PASS: safe favorites persistence and resource allowlist.");
+
+
+// v0.6.2: Pristine compiled binaries must be reusable without a compiler;
+// SHA-256 checking must reject changes before a swap touches any installed app.
+using (BuildCacheLease.Acquire())
+{
+    AsepriteBuildCache.Clear(Console.WriteLine);
+    var fake = Path.Combine(Path.GetTempPath(),
+        "Aseprite Speed Test " + Guid.NewGuid().ToString("N"));
+    var sourceBin = Path.Combine(fake, "build", "bin");
+    Directory.CreateDirectory(Path.Combine(sourceBin, "data"));
+    var tag = "speed-smoke-v99.0.0";
+    try
+    {
+        File.WriteAllText(Path.Combine(sourceBin, "aseprite.exe"), "test-only-not-a-real-executable");
+        File.WriteAllText(Path.Combine(sourceBin, "data", "theme.png"), "upstream packaged asset");
+        AsepriteBuildCache.Store(tag, "99.0.0", sourceBin, Console.WriteLine);
+        if (!AsepriteBuildCache.HasBuild(tag, "99.0.0"))
+            throw new Exception("Compiled cache did not record local build.");
+        var stage1 = Path.Combine(fake, "staged1");
+        if (!AsepriteBuildCache.TryStage(tag, "99.0.0", stage1, Console.WriteLine) ||
+            File.ReadAllText(Path.Combine(stage1, "data", "theme.png")) != "upstream packaged asset")
+            throw new Exception("Verified compiled build wasn't restored.");
+        var cachePayload = Path.Combine(AsepriteBuildCache.Root,
+            AsepriteBuildCache.Key(tag), "payload", "aseprite.exe");
+        File.AppendAllText(cachePayload, "CACHE CORRUPTION");
+        var stage2 = Path.Combine(fake, "staged2");
+        if (AsepriteBuildCache.TryStage(tag, "99.0.0", stage2, Console.WriteLine))
+            throw new Exception("Corrupted compiled cache was trusted.");
+        if (Directory.Exists(stage2))
+            throw new Exception("Rejected cache left a partially staged executable.");
+        if (AsepriteBuildCache.Statistics().Versions < 1)
+            throw new Exception("Cache storage usage wasn't reported.");
+        Console.WriteLine("PASS: instant build restoration, SHA-256 verification, tamper refusal.");
+    }
+    finally
+    {
+        AsepriteBuildCache.Clear(Console.WriteLine);
+        try { Directory.Delete(fake, recursive: true); } catch { }
+    }
+}
+var speedSettings = BuildPerformance.Validate(new BuildPerformance.Options(true, 4));
+if (BuildPerformance.EffectiveJobs(speedSettings) != 4 ||
+    BuildPerformance.EffectiveJobs(new BuildPerformance.Options(false, 0)) is < 2 or > 12)
+    throw new Exception("Ninja job calculation isn't bounded.");
+try
+{
+    BuildPerformance.Validate(new BuildPerformance.Options(true, 100));
+    throw new Exception("Unbounded Ninja job count was accepted.");
+}
+catch (InvalidDataException) { }
+Console.WriteLine("PASS: bounded Ninja parallelism and cache settings.");
+
+if (OperatingSystem.IsWindows())
+{
+    using var lease1 = BuildCacheLease.Acquire();
+    try
+    {
+        using var duplicate = BuildCacheLease.Acquire();
+        throw new Exception("Second concurrent build got an exclusive cache lock.");
+    }
+    catch (IOException) { }
+}
+Console.WriteLine("PASS: concurrent build/cache cleanup lock.");
+
+if (OperatingSystem.IsWindows())
+{
+    var physical = Path.Combine(Path.GetTempPath(),
+        "Source path with spaces " + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(physical);
+    string? sharedFolder = null;
+    try
+    {
+        using (var mounted = WindowsBuildDrive.Mount(physical))
+        {
+            var source = Path.Combine(mounted.Root, "source");
+            Directory.CreateDirectory(Path.Combine(source, "laf", "misc"));
+            var tag = "m124-" + Guid.NewGuid().ToString("N");
+            File.WriteAllText(Path.Combine(source, "laf", "misc", "skia-tag.txt"), tag + "\n");
+            using (var skia = SharedSkiaCache.Attach(source, Console.WriteLine))
+            {
+                sharedFolder = skia.TargetPath;
+                File.WriteAllText(Path.Combine(skia.TargetPath, "dependency-test.txt"), "shared");
+                if (File.ReadAllText(Path.Combine(source, ".deps", "skia-m124",
+                    "dependency-test.txt")) != "shared")
+                    throw new Exception("Skia directory junction does not route to persistent dependency cache.");
+            }
+            if (Directory.Exists(Path.Combine(source, ".deps", "skia-m124")))
+                throw new Exception("Skia cache cleanup left a dangling junction.");
+        }
+        if (sharedFolder == null || !File.Exists(Path.Combine(sharedFolder, "dependency-test.txt")))
+            throw new Exception("Skia cache dependency vanished after source cleanup.");
+        Console.WriteLine("PASS: version-keyed shared Skia survives disposable build session.");
+    }
+    finally
+    {
+        if (sharedFolder != null && Directory.Exists(sharedFolder))
+            Directory.Delete(sharedFolder, recursive: true);
+        try { Directory.Delete(physical, true); } catch { }
+    }
+}
