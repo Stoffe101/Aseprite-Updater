@@ -392,3 +392,23 @@ if (args.Contains("--overlay-integration"))
     if (TileIndexOverlayManager.Installed) throw new Exception("Tile Index Overlay removal failed.");
     Console.WriteLine("PASS: curated Tile Index Overlay installed and removed.");
 }
+
+
+// Opt-in CI fixture: verify the *real Godot editor* can load the addon on the
+// pinned Godot 4.7.2 version. This does NOT modify PixelTown or user projects.
+if (args.Contains("--godot-editor-fixture"))
+{
+    var fixturePath = Path.Combine(Path.GetTempPath(), "AsepriteWizardGodotEditorCI");
+    if (Directory.Exists(fixturePath)) Directory.Delete(fixturePath, recursive: true);
+    Directory.CreateDirectory(fixturePath);
+    var config = "config_version=5\n" +
+        "[application]\nconfig/name=\"Aseprite Wizard CI Fixture\"\n" +
+        "[editor_plugins]\n" +
+        "enabled=PackedStringArray(\"res://addons/AsepriteWizard/plugin.cfg\")\n";
+    File.WriteAllText(Path.Combine(fixturePath, "project.godot"), config);
+    await GodotWizardManager.InstallOrUpdateAsync(fixturePath, Console.WriteLine,
+        CancellationToken.None);
+    if (File.ReadAllText(Path.Combine(fixturePath, "project.godot")) != config)
+        throw new Exception("Wizard altered the CI project config.");
+    Console.WriteLine("GODOT_CI_FIXTURE=" + fixturePath);
+}
