@@ -75,9 +75,10 @@ public partial class LibraryWindow : Window
         ToolDescription.Text = tool.Description;
         ToolPixelTown.Text = "PIXELTOWN: " + tool.PixelTownUse;
         var installed = WorkshopLibrary.Installed(tool);
-        ToolStatus.Text = installed ?
-            $"Installed • revision {WorkshopLibrary.Revision(tool)?[..Math.Min(10, WorkshopLibrary.Revision(tool)?.Length ?? 0)] ?? "unknown"}" :
-            "Not installed";
+        var revision = WorkshopLibrary.Revision(tool);
+        ToolStatus.Text = installed
+            ? $"Installed • revision {(revision == null ? "unknown" : revision[..Math.Min(10, revision.Length)])}"
+            : "Not installed";
         InstallToolButton.Content = installed ? "Reinstall / update" : "Install selected";
         InstallToolButton.IsEnabled = !_busy;
         RemoveToolButton.IsEnabled = !_busy && installed;
