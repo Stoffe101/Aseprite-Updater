@@ -240,7 +240,7 @@ public partial class LibraryWindow : Window
         {
             SetStatus("Fetching vetted official Aseprite script revision...");
             var sha = await WorkshopLibrary.LatestToolRevision(CancellationToken.None);
-            foreach (var tool in WorkshopLibrary.Tools)
+            foreach (var tool in WorkshopLibrary.StarterTools)
             {
                 SetStatus("Installing " + tool.Name + "...");
                 try
