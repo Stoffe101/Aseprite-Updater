@@ -1,0 +1,46 @@
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and package Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run version normalization checks
+        run: dotnet run --project tests/VersionSmoke/VersionSmoke.csproj --configuration Release
+      - name: Restore WPF app
+        run: dotnet restore src/AsepriteManager/AsepriteManager.csproj
+      - name: Build WPF app
+        run: dotnet build src/AsepriteManager/AsepriteManager.csproj -c Release --no-restore
+      - name: Publish self-contained Windows app
+        run: dotnet publish src/AsepriteManager/AsepriteManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+      - name: Create Windows installer
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $compiler)) { throw "Inno Setup compiler was not installed." }
+          & $compiler 'installer\AsepriteManager.iss'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AsepriteManager-Windows-x64
+          path: |
+            dist/*.exe
+            publish/AsepriteManager.exe
+          if-no-files-found: error
