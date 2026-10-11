@@ -36,6 +36,19 @@ Theme settings and extension files are stored under %APPDATA%\Aseprite\extension
 
 *This is an early-access implementation.* Theme API integration, custom edits, and Aseprite's version-specific theme compatibility still need end-to-end Windows testing. Version checking requires internet; source builds still require Git, CMake, Ninja, Visual Studio C++ tools, and a Windows SDK.
 
+## PixelTown Creator's Library (v0.4.0 preview)
+
+The Creator's Library is a separate window launched from the Manager dashboard. It contains a small curated set of **official MIT-licensed Aseprite Lua examples** that help with tiles, animation cels and selection outlines. Each script can be installed, checked for updates and uninstalled. Sources are downloaded directly from pinned upstream GitHub commit URLs, not bundled or executed by Manager.
+
+- **Tiles to Layers**, **Pack Similar Tiles**, **Move Cels**, **Stroke Outside Selection**.
+- **Extract PixelTown prototype palette** from a *local copy* of PixelTown: select a Godot project directory with project.godot and art/world_canvas.gd; unique source hex colors become a draft Aseprite GPL palette extension without editing or uploading the game project.
+- **Import local GPL** palette for any other artwork. Palettes are installed as individual Aseprite extension packages in your profile; manually edited resources are protected.
+- Installations live under \`%APPDATA%\Aseprite\`, independent of source-build updates. Existing managed files are SHA-256 checked and prior copies are retained in \`%LOCALAPPDATA%\Aseprite Manager\library-backups\`.
+
+Scripts can execute code *when you run them inside Aseprite*. Only explicitly reviewed, MIT-licensed examples are automatically offered; work on a copy of valuable sprites until you trust a tool. Godot importer and brush installation are future phases, not disguised as completed functions.
+
+See the full [PixelTown audit and library research](docs/PIXELTOWN_LIBRARY_AUDIT.md) for art scales, source licensing, scope boundaries and Windows QA gates. PixelTown's public source/art remains All Rights Reserved: this app does not copy those assets or automatically modify the Godot project.
+
 ## Development
 
 1. Install the .NET 8 SDK on a Windows 11 development machine.
