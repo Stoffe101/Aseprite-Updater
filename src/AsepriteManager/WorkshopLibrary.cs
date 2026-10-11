@@ -26,8 +26,20 @@ public static class WorkshopLibrary
         new LibraryTool("move-cels","Move Cels","Animation",
             "Move selected animation cels by an X/Y offset.","Align character poses and equipment overlays.","Move Cels.lua"),
         new LibraryTool("stroke-outside","Stroke Outside Selection","Editing",
-            "Add an outside border to a selected region.","Readable silhouettes for tiny characters and gear.","Stroke Outside Selection.lua")
+            "Add an outside border to a selected region.","Readable silhouettes for tiny characters and gear.","Stroke Outside Selection.lua"),
+        new LibraryTool("export-tags","Export Tags to Sheets","Godot Workflow",
+            "Export each named animation tag as PNG and JSON. Prompts before overwriting existing exports.",
+            "Prepare directional walk, work and combat sprite animations.","Export Tags To Different Sprite Sheets.lua"),
+        new LibraryTool("merge-top-name","Merge with Top Layer Name","Editing",
+            "Merge down while keeping the active top layer name. Modifies the open sprite.",
+            "Organize complex character and equipment layers; test on an asset copy.","Merge Down with Name Of Top Layer.lua"),
+        new LibraryTool("stack-sprites","Stack All Open Sprites","Workflow",
+            "Combine currently open sprites into one new layered sprite.",
+            "Compare villager, guard and object sprite variations without changing source files.","Stack All Sprites in One.lua")
     };
+    // Safe default pack remains focused; optional tools are installable individually.
+    public static IReadOnlyList<LibraryTool> StarterTools => Tools.Take(4).ToArray();
+
     public static string ScriptsFolder => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "Aseprite", "scripts", "AsepriteManager");
