@@ -264,6 +264,8 @@ public sealed class ManagerService
             }
             progress.Report(new WorkStatus(100, "Complete", $"Aseprite {release.Version} installed successfully." +
                 (backup is null ? "" : " Previous version retained as a backup.")));
+            try { CreateStartMenuShortcut(installDir); }
+            catch (Exception ex) { Log("Start Menu shortcut could not be created: " + ex.Message); }
             Log($"SUCCESS: {release.Tag} => {installDir}; backup: {backup ?? "none"}");
         }
         catch (Exception ex)
@@ -277,6 +279,25 @@ public sealed class ManagerService
             TryDelete(session);
             if (!swapped) TryDelete(stage);
         }
+    }
+
+    private static void CreateStartMenuShortcut(string installDir)
+    {
+        var programs = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs");
+        Directory.CreateDirectory(programs);
+        var target = Path.Combine(installDir, "aseprite.exe");
+        var shortcutPath = Path.Combine(programs, "Aseprite (Source Build).lnk");
+        var shellType = Type.GetTypeFromProgID("WScript.Shell")
+            ?? throw new InvalidOperationException("Windows shortcut service is unavailable.");
+        dynamic shell = Activator.CreateInstance(shellType)
+            ?? throw new InvalidOperationException("Could not create Windows shortcut service.");
+        dynamic shortcut = shell.CreateShortcut(shortcutPath);
+        shortcut.TargetPath = target;
+        shortcut.WorkingDirectory = installDir;
+        shortcut.Description = "Aseprite (compiled locally from official source)";
+        shortcut.IconLocation = target + ",0";
+        shortcut.Save();
     }
 
     private static void CopyDirectory(string source, string destination)
