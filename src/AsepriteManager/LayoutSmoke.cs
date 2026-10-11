@@ -56,5 +56,36 @@ public static class LayoutSmoke
             encoder.Save(stream);
             Console.WriteLine($"PASS: WPF layout {width}x{height}");
         }
+        foreach (var (width, height) in new[] { (850, 660), (1050, 780) })
+        {
+            var library = new LibraryWindow(new ManagerService());
+            library.ToolList.SelectedIndex = 0;
+            var root = (FrameworkElement)library.Content;
+            root.Measure(new Size(width, height));
+            root.Arrange(new Rect(0, 0, width, height));
+            root.UpdateLayout();
+
+            var controls = new FrameworkElement[]
+            {
+                library.ToolList, library.ToolTitle,
+                library.InstallToolButton, library.StarterKitButton,
+                library.ToolDescription, library.PaletteStatus, library.LibraryStatus
+            };
+            foreach (var control in controls)
+            {
+                if (control.ActualWidth < 20 || control.ActualHeight < 10 ||
+                    double.IsNaN(control.ActualWidth) || double.IsNaN(control.ActualHeight))
+                    throw new InvalidOperationException(
+                        $"Library layout failed at {width}x{height} for {control.Name}.");
+            }
+            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(root);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using var stream = File.Create(
+                Path.Combine("ui-snapshots", $"library-{width}x{height}.png"));
+            encoder.Save(stream);
+            Console.WriteLine($"PASS: Creator's Library layout {width}x{height}");
+        }
     }
 }
