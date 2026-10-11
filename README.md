@@ -23,8 +23,8 @@ See the [Actions tab](../../actions/workflows/windows.yml). Download the artifac
 ## Development
 
 1. Install the .NET 8 SDK on a Windows 11 development machine.
-2. Run \`dotnet run --project src/AsepriteManager/AsepriteManager.csproj\`.
-3. Run \`dotnet publish src/AsepriteManager/AsepriteManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true\`.
+2. Run `dotnet run --project src/AsepriteManager/AsepriteManager.csproj`.
+3. Run `dotnet publish src/AsepriteManager/AsepriteManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true`.
 
 The manager may offer to install *Aseprite's* build dependencies, including several GB of Visual Studio C++ tools. No installs begin automatically at startup.
 
