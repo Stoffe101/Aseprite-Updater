@@ -412,3 +412,36 @@ if (args.Contains("--godot-editor-fixture"))
         throw new Exception("Wizard altered the CI project config.");
     Console.WriteLine("GODOT_CI_FIXTURE=" + fixturePath);
 }
+
+
+// Profile backups are exports only, never edits to the source folder.
+var profileFixture = Path.Combine(Path.GetTempPath(),
+    "Aseprite Profile Fixture-" + Guid.NewGuid().ToString("N"));
+var srcProfile = Path.Combine(profileFixture, "Aseprite");
+var archiveFile = Path.Combine(profileFixture, "profile.zip");
+try
+{
+    Directory.CreateDirectory(Path.Combine(srcProfile, "extensions", "test"));
+    File.WriteAllText(Path.Combine(srcProfile, "aseprite.ini"), "saved-preferences");
+    File.WriteAllText(Path.Combine(srcProfile, "user.aseprite-brushes"), "custom-brushes");
+    File.WriteAllText(Path.Combine(srcProfile, "extensions", "test", "theme.xml"), "custom-theme");
+    var count = ProfileBackupService.CreateBackup(srcProfile, archiveFile);
+    if (count != 3) throw new Exception("Profile backup missed files.");
+    using (var zip = System.IO.Compression.ZipFile.OpenRead(archiveFile))
+    {
+        if (!zip.Entries.Any(e => e.FullName == "user.aseprite-brushes") ||
+            !zip.Entries.Any(e => e.FullName == "extensions/test/theme.xml"))
+            throw new Exception("Backup did not preserve user brush settings or extensions.");
+    }
+    if (File.ReadAllText(Path.Combine(srcProfile, "aseprite.ini")) != "saved-preferences")
+        throw new Exception("Profile backup modified user preferences.");
+    try
+    {
+        ProfileBackupService.CreateBackup(srcProfile,
+            Path.Combine(srcProfile, "accidental-inside.zip"));
+        throw new Exception("Profile backup should reject output nested inside the source.");
+    }
+    catch (InvalidOperationException) { }
+    Console.WriteLine("PASS: complete read-only Aseprite profile backup and inside-folder rejection.");
+}
+finally { try { Directory.Delete(profileFixture, true); } catch { } }
