@@ -31,7 +31,7 @@ public static class TileIndexOverlayManager
     }
     public static async Task<string> LatestSha(CancellationToken ct)
     {
-        using var response = await Client.GetAsync(
+        using var response = await GitHubApi.GetAsync(Client,
             "https://api.github.com/repos/Pixeltica/AsepriteExtensions/commits/main", ct);
         response.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
