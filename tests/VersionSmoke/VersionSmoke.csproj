@@ -12,5 +12,8 @@
     <Compile Include="../../src/AsepriteManager/WindowsBatchLauncher.cs" Link="WindowsBatchLauncher.cs" />
     <Compile Include="../../src/AsepriteManager/ThemeManager.cs" Link="ThemeManager.cs" />
     <Compile Include="../../src/AsepriteManager/WorkshopLibrary.cs" Link="WorkshopLibrary.cs" />
+    <Compile Include="../../src/AsepriteManager/GodotWizardManager.cs" Link="GodotWizardManager.cs" />
+    <Compile Include="../../src/AsepriteManager/PaletteGallery.cs" Link="PaletteGallery.cs" />
+    <Compile Include="../../src/AsepriteManager/TileIndexOverlayManager.cs" Link="TileIndexOverlayManager.cs" />
   </ItemGroup>
 </Project>
