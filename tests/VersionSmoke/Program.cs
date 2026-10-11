@@ -226,6 +226,16 @@ if (args.Contains("--theme-integration"))
         }
         finally { try { Directory.Delete(dir, recursive: true); } catch { } }
     }
+    // The Manager must uninstall only its own unmodified theme and keep a backup.
+    var themeToInstall = ThemeCatalog.Curated.First(t => t.Id == "cat-mocha");
+    var themeService = new ThemeManager(Console.WriteLine);
+    await themeService.InstallOrUpdateAsync(themeToInstall, CancellationToken.None);
+    if (!themeService.IsInstalled(themeToInstall))
+        throw new Exception("Real managed theme installation did not appear.");
+    themeService.RemoveTheme(themeToInstall);
+    if (themeService.IsInstalled(themeToInstall))
+        throw new Exception("Managed theme uninstall failed.");
+    Console.WriteLine("PASS: real Catppuccin theme installation and protected uninstall.");
 }
 
 
@@ -364,6 +374,18 @@ if (args.Contains("--godot-integration"))
             !File.Exists(Path.Combine(state.PluginPath, "plugin.gd")) ||
             File.ReadAllText(config) != original)
             throw new Exception("Godot Wizard install changed project config or failed integrity.");
+        var pluginFile = Path.Combine(state.PluginPath, "plugin.gd");
+        var originalPluginText = File.ReadAllText(pluginFile);
+        File.AppendAllText(pluginFile, "\n# temporary CI customization\n");
+        if (!GodotWizardManager.Inspect(godotFixtureProject).Modified)
+            throw new Exception("Modified Godot addon was not detected.");
+        try
+        {
+            GodotWizardManager.Uninstall(godotFixtureProject, Console.WriteLine);
+            throw new Exception("The manager removed locally modified addon code.");
+        }
+        catch (InvalidOperationException) { }
+        File.WriteAllText(pluginFile, originalPluginText);
         GodotWizardManager.Uninstall(godotFixtureProject, Console.WriteLine);
         if (Directory.Exists(state.PluginPath) || File.ReadAllText(config) != original)
             throw new Exception("Godot addon uninstall touched the project or retained plugin files.");
