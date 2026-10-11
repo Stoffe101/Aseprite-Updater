@@ -112,6 +112,48 @@ if (OperatingSystem.IsWindows())
                 throw new Exception($"Windows batch launch failed (expected {expectedCode}, got {p.ExitCode}): {stdout} {stderr}");
             Console.WriteLine($"PASS: relative batch in spaced path, exit code {expectedCode}");
         }
+
+        // Exercise the exact production wrapper as well, including an MSVC
+        // environment batch and a real Git Bash executable under Program Files.
+        var bashExe = @"C:\Program Files\Git\bin\bash.exe";
+        if (!File.Exists(bashExe))
+            throw new Exception("Git for Windows is not installed on the Windows CI runner.");
+        var sourceFolder = Path.Combine(rootWithSpaces, "source folder");
+        var fakeVsFolder = Path.Combine(rootWithSpaces, "Visual Studio Tools");
+        Directory.CreateDirectory(sourceFolder);
+        Directory.CreateDirectory(fakeVsFolder);
+        var vcvars = Path.Combine(fakeVsFolder, "vcvars64.bat");
+        File.WriteAllLines(vcvars, new[] { "@echo off", "echo FAKE_MSVC_SETUP_OK", "exit /b 0" });
+        File.WriteAllText(Path.Combine(sourceFolder, "build.sh"),
+            "#!/usr/bin/env bash\n" +
+            "echo FAKE_ASEPRITE_BUILD_OK\n" +
+            "test \"$1\" = \"--auto\" && test \"$2\" = \"--norun\"\n");
+        WindowsBatchLauncher.WriteAsepriteWrapper(
+            sourceFolder, vcvars, bashExe, new[] { fakeVsFolder });
+        using (var productionLikeProcess = new System.Diagnostics.Process())
+        {
+            productionLikeProcess.StartInfo = new System.Diagnostics.ProcessStartInfo("cmd.exe")
+            {
+                WorkingDirectory = sourceFolder, UseShellExecute = false,
+                CreateNoWindow = true, RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            foreach (var arg in WindowsBatchLauncher.Arguments())
+                productionLikeProcess.StartInfo.ArgumentList.Add(arg);
+            productionLikeProcess.Start();
+            var output = productionLikeProcess.StandardOutput.ReadToEnd();
+            var err = productionLikeProcess.StandardError.ReadToEnd();
+            if (!productionLikeProcess.WaitForExit(20000))
+            {
+                productionLikeProcess.Kill(entireProcessTree: true);
+                throw new Exception("Fake build invocation hung.");
+            }
+            if (productionLikeProcess.ExitCode != 0 ||
+                !output.Contains("FAKE_MSVC_SETUP_OK") ||
+                !output.Contains("FAKE_ASEPRITE_BUILD_OK"))
+                throw new Exception($"Full spaced-path MSVC/Git Bash launch failed: code {productionLikeProcess.ExitCode}. {output} {err}");
+            Console.WriteLine("PASS: full MSVC + Git Bash wrapper under a spaced source path.");
+        }
     }
     finally { try { Directory.Delete(rootWithSpaces, true); } catch { } }
 }
