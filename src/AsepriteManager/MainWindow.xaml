@@ -61,7 +61,7 @@
             <StackPanel Margin="38,30,38,36">
                 <Grid Margin="0,0,0,24">
                     <StackPanel>
-                        <TextBlock Text="ASEPRITE / MANAGER" Foreground="#A991FF" FontSize="12" FontWeight="Bold" CharacterSpacing="1"/>
+                        <TextBlock Text="ASEPRITE / MANAGER" Foreground="#A991FF" FontSize="12" FontWeight="Bold"/>
                         <TextBlock Text="Your pixel-art workshop, updated." FontSize="28" FontWeight="Bold" Margin="0,8,0,3"/>
                         <TextBlock Text="Install from source, manage build tools and update safely." Foreground="#A8B2CB"/>
                     </StackPanel>
