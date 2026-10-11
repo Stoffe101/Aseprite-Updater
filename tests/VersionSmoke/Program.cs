@@ -157,3 +157,51 @@ if (OperatingSystem.IsWindows())
     }
     finally { try { Directory.Delete(rootWithSpaces, true); } catch { } }
 }
+
+
+// Curated themes can contain graphics, fonts and metadata, but never executable
+// scripts and never paths that escape the designated extension folder.
+byte[] BuildThemeZip(bool includeEvil = false)
+{
+    using var ms = new MemoryStream();
+    using (var zip = new System.IO.Compression.ZipArchive(ms,
+        System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+    {
+        void Entry(string name, string content)
+        {
+            var file = zip.CreateEntry(name);
+            using var w = new StreamWriter(file.Open());
+            w.Write(content);
+        }
+        Entry("theme/package.json",
+            "{\"name\":\"smoke-theme\",\"version\":\"1.0\",\"contributes\":{\"themes\":[{\"id\":\"smoke\",\"path\":\".\"}]}}");
+        Entry("theme/theme.xml", "<theme/>");
+        Entry("theme/sheet.png", "png_placeholder");
+        Entry("theme/malicious.lua", "os.execute('ignored')");
+        if (includeEvil)
+            Entry("theme/../../evil.txt", "bad");
+    }
+    return ms.ToArray();
+}
+var tempTheme = Path.Combine(Path.GetTempPath(), "AsepriteManager-ThemeSafe-" + Guid.NewGuid().ToString("N"));
+try
+{
+    Directory.CreateDirectory(tempTheme);
+    ThemeManager.UnpackVerifiedTheme(BuildThemeZip(), tempTheme);
+    if (!File.Exists(Path.Combine(tempTheme, "theme.xml")))
+        throw new Exception("Valid theme was not extracted.");
+    if (File.Exists(Path.Combine(tempTheme, "malicious.lua")))
+        throw new Exception("Unsafe extension script was installed.");
+    try
+    {
+        ThemeManager.UnpackVerifiedTheme(BuildThemeZip(true),
+            Path.Combine(tempTheme, "unsafe"));
+        throw new Exception("Unsafe theme archive should have been rejected.");
+    }
+    catch (InvalidDataException) { }
+    Console.WriteLine("PASS: valid themes extracted; unexpected scripts excluded; traversal rejected.");
+}
+finally
+{
+    try { Directory.Delete(tempTheme, true); } catch { }
+}
