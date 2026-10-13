@@ -84,13 +84,13 @@
                            Foreground="#B5C1DA" TextWrapping="Wrap" Margin="0,0,0,20"/>
 
                 <WrapPanel Margin="0,0,0,14">
-                    <Button x:Name="TabTools" Content="Tools" Tag="tools" Click="Navigate_Click" MinWidth="96" Height="36"/>
-                    <Button x:Name="TabPaletteImport" Content="Import" Tag="palette-import" Click="Navigate_Click" MinWidth="96" Height="36"/>
-                    <Button x:Name="TabPalettes" Content="Palettes" Tag="palettes" Click="Navigate_Click" MinWidth="98" Height="36"/>
-                    <Button x:Name="TabExtensions" Content="Extensions" Tag="extensions" Click="Navigate_Click" MinWidth="108" Height="36"/>
-                    <Button x:Name="TabGodot" Content="Godot" Tag="godot" Click="Navigate_Click" MinWidth="96" Height="36"/>
-                    <Button x:Name="TabBrushes" Content="Brushes" Tag="brushes" Click="Navigate_Click" MinWidth="96" Height="36"/>
-                    <Button x:Name="TabBackups" Content="Backups" Tag="backup" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                    <Button x:Name="TabTools" Content="Tools" Tag="tools" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabPaletteImport" Content="Import" Tag="palette-import" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabPalettes" Content="Palettes" Tag="palettes" Click="Navigate_Click" MinWidth="98" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabExtensions" Content="Extensions" Tag="extensions" Click="Navigate_Click" MinWidth="108" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabGodot" Content="Godot" Tag="godot" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabBrushes" Content="Brushes" Tag="brushes" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabBackups" Content="Backups" Tag="backup" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
                 </WrapPanel>
 
                 <Border x:Name="StarterSection" Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
