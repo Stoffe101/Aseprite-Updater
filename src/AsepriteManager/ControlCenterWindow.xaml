@@ -63,12 +63,12 @@
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
       <StackPanel Grid.Row="0" Margin="25,20,25,12">
         <TextBlock Text="ASEPRITE MANAGER / CONTROL CENTER" Foreground="#B7A5FA" FontSize="12" FontWeight="Bold"/>
-        <TextBlock Text="Keep your creative setup healthy." FontWeight="Bold" FontSize="26"
+        <TextBlock x:Name="PageHeading" Text="Keep your creative setup healthy." FontWeight="Bold" FontSize="26"
                    TextWrapping="Wrap" Margin="0,7,0,5"/>
-        <TextBlock Text="Review updates, protect your configuration, and track project toolkits."
+        <TextBlock x:Name="PageSummary" Text="Review updates, protect your configuration, and track project toolkits."
                    Style="{StaticResource Description}"/>
       </StackPanel>
-      <WrapPanel Grid.Row="1" Margin="25,0,25,8">
+      <WrapPanel Grid.Row="1" Visibility="Collapsed" Margin="25,0,25,8">
         <Button x:Name="UpdatesTab" Content="Update Center" Tag="updates" Background="#6954B8"
                 Click="Navigate_Click" MinWidth="152"/>
         <Button x:Name="RecoveryTab" Content="Recovery" Tag="recovery" Click="Navigate_Click"/>
