@@ -582,9 +582,17 @@ public partial class MainWindow : Window
     {
         if (_busy && route is not ("activity" or "aseprite" or "overview"))
             return;
-        var library = route is "tools" or "palettes" or "extensions" or "godot" or "brushes" or "backup";
+        var library = route is "tools" or "palettes" or "palette-import" or "extensions" or "godot" or "brushes" or "backup";
         var control = route is "updates" or "recovery" or "profiles";
         var performance = route == "performance";
+        if ((_libraryPage?.IsBusy == true && !library) ||
+            (_controlPage?.IsBusy == true && !control) ||
+            (_performancePage?.IsBusy == true && !performance))
+        {
+            ShellStage.Text = "Operation in progress";
+            ShellDetail.Text = "Wait for the current task to finish before changing sections.";
+            return;
+        }
         if (library && _libraryPage == null)
         {
             _libraryPage = new LibraryWindow(_manager);
