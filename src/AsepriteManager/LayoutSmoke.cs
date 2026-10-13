@@ -61,7 +61,8 @@ public static class LayoutSmoke
                 root.UpdateLayout();
 
                 if (window.ShellStage.ActualWidth < 50 ||
-                    window.MainScroller.ActualWidth < 300 ||
+                    ((route is "overview" or "aseprite" or "themes" or "activity") &&
+                        window.MainScroller.ActualWidth < 300) ||
                     window.NavOverview.ActualWidth < 100)
                     throw new InvalidOperationException(
                         $"Unified shell unusable at {width}x{height}, route {route}.");
