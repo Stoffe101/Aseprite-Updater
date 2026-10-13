@@ -290,6 +290,15 @@
                         <TextBlock x:Name="VersionDetail" Foreground="#A4B4CF" Margin="0,11,0,0"
                                    TextWrapping="Wrap"
                                    Text="Click Check for updates to load available versions."/>
+                        <WrapPanel Margin="0,14,0,8">
+                            <Button Content="{Binding Content, ElementName=InstallButton}"
+                                    IsEnabled="{Binding IsEnabled, ElementName=InstallButton}"
+                                    Click="Install_Click" Background="#785BE0" MinWidth="205" Margin="0,0,11,8"
+                                    ToolTip="Build or restore the selected Aseprite release"/>
+                            <Button Content="Launch installed Aseprite" Click="Launch_Click"
+                                    IsEnabled="{Binding IsEnabled, ElementName=LaunchButton}"
+                                    Margin="0,0,0,8" MinWidth="195"/>
+                        </WrapPanel>
                         <WrapPanel Margin="0,14,0,0">
                             <Button x:Name="UpdateAsepriteButton" Content="Update Aseprite to latest"
                                     MinWidth="230" Margin="0,0,12,8" Background="#7357D4"
