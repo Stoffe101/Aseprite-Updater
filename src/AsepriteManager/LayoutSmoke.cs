@@ -70,10 +70,16 @@ public static class LayoutSmoke
                 if (route == "aseprite" && (window.VersionPicker.ActualWidth < 130 ||
                     window.InstallButton.ActualWidth < 120))
                     throw new InvalidOperationException("Installer controls clipped.");
-                if (route == "tools" &&
-                    window.LibraryHost.Content is LibraryWindow library &&
-                    library.ToolList.ActualWidth < 150)
-                    throw new InvalidOperationException("Resource selection panel clipped.");
+                if (route == "tools" && window.LibraryHost.Content is LibraryWindow library)
+                {
+                    if (library.ToolList.ActualWidth < 150)
+                        throw new InvalidOperationException("Resource selection panel clipped.");
+                    var y1 = library.TabTools.TranslatePoint(new Point(0, 0), root).Y;
+                    var y2 = library.TabBackups.TranslatePoint(new Point(0, 0), root).Y;
+                    if (Math.Abs(y1 - y2) > 3)
+                        throw new InvalidOperationException(
+                            $"Library navigation wrapped at {width}x{height}; Backups must stay on the same line.");
+                }
                 if (route == "updates" &&
                     window.ControlHost.Content is ControlCenterWindow center &&
                     center.CheckAllButton.ActualWidth < 120)
