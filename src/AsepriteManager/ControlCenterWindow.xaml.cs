@@ -54,6 +54,20 @@ public partial class ControlCenterWindow : System.Windows.Controls.UserControl
 
     public void ShowPage(string page)
     {
+        PageHeading.Text = page switch
+        {
+            "updates" => "Updates across your toolkit",
+            "recovery" => "Configuration recovery",
+            "profiles" => "Project Profiles",
+            _ => "Your creative setup"
+        };
+        PageSummary.Text = page switch
+        {
+            "updates" => "Check Aseprite, themes, tools and integrations in one place.",
+            "recovery" => "Back up and restore safely without disturbing your artwork.",
+            "profiles" => "Keep a portable inventory of your preferred tools and palettes.",
+            _ => "Manage your Aseprite workspace."
+        };
         UpdatesPage.Visibility = page == "updates" ? Visibility.Visible : Visibility.Collapsed;
         RecoveryPage.Visibility = page == "recovery" ? Visibility.Visible : Visibility.Collapsed;
         ProfilesPage.Visibility = page == "profiles" ? Visibility.Visible : Visibility.Collapsed;
