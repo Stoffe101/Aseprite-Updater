@@ -34,6 +34,9 @@ public partial class ControlCenterWindow : System.Windows.Controls.UserControl
     {
         _busy = busy;
         CheckAllButton.IsEnabled = !busy;
+        UpdatesTab.IsEnabled = !busy;
+        RecoveryTab.IsEnabled = !busy;
+        ProfilesTab.IsEnabled = !busy;
         CreateBackupButton.IsEnabled = !busy;
         SelectRestoreButton.IsEnabled = !busy;
         RestoreButton.IsEnabled = !busy && _restoreZip != null;
