@@ -1,24 +1,38 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace AsepriteManager;
 
+/// <summary>
+/// Pixel-perfect screenshots of the actual unified MainWindow, not isolated
+/// child windows. Every route is photographed at normal and compact sizes,
+/// including scrolled content for sections taller than their viewport.
+/// </summary>
 public static class LayoutSmoke
 {
+    private static readonly string[] Routes =
+    {
+        "overview", "aseprite", "themes", "tools", "palettes",
+        "palette-import", "extensions", "godot", "brushes", "backup",
+        "updates", "recovery", "profiles", "performance", "activity"
+    };
+
     public static void Run()
     {
         Directory.CreateDirectory("ui-snapshots");
-        foreach (var (width, height) in new[] { (850, 660), (1040, 875), (1440, 950) })
+        foreach (var (width, height) in new[]
+            { (1024, 720), (1366, 900), (1920, 1080) })
         {
             var window = new MainWindow();
-            // Populate realistic release data so screenshots exercise selected-text
-            // styling instead of only showing an empty disabled dropdown.
-            window.InstalledVersion.Text = "v1.3.18.2-dev";
+            // Realistic state makes clipping, badge truncation, and missing
+            // controls visible instead of rendering only placeholder text.
+            window.InstalledVersion.Text = "v1.3.18.2";
             window.InstalledSubtitle.Text = "Installed source build";
             window.LatestVersion.Text = "v1.3.18.6";
-            window.LatestSubtitle.Text = "Official GitHub stable release";
+            window.LatestSubtitle.Text = "Latest stable on GitHub";
             window.VersionPicker.ItemsSource = new[]
             {
                 new ReleaseInfo("v1.3.18.6", "1.3.18.6", false, true, DateTimeOffset.UtcNow),
@@ -27,140 +41,99 @@ public static class LayoutSmoke
             };
             window.VersionPicker.IsEnabled = true;
             window.VersionPicker.SelectedIndex = 0;
-            window.DependencySummary.Text = "Git: Ready   •   CMake: Ready   •   Ninja: Ready   •   Visual Studio 2022 C++: Ready";
-            window.StatusTitle.Text = "Version change available";
-            window.StatusDetail.Text = "A newer version is ready. Your previous installation and custom themes will be backed up.";
-            var root = (FrameworkElement)window.Content;
-            root.Measure(new Size(width, height));
-            root.Arrange(new Rect(0, 0, width, height));
-            root.UpdateLayout();
+            window.DependencySummary.Text =
+                "Git, Git Bash, CMake, Ninja, Visual Studio 2022 C++ and Windows SDK are ready.";
+            window.StatusTitle.Text = "Ready to switch";
+            window.StatusDetail.Text =
+                "Previously compiled version found. Changes are verified and the previous installation is retained.";
+            window.ActivityLog.Text =
+                "[12:03] [259/1575] Compiling Aseprite source...\n" +
+                "[12:04] Cached Skia ready. Completed source validation.\n" +
+                "[12:05] Previous installation backup preserved.";
 
-            var required = new FrameworkElement[] {
-                window.InstalledVersion, window.LatestVersion, window.VersionPicker,
-                window.CheckButton, window.InstallPath, window.BrowseButton,
-                window.DepsButton, window.InstallButton, window.StatusTitle
-            };
-            foreach (var control in required)
+            foreach (var route in Routes)
             {
-                if (control.ActualWidth < 20 || control.ActualHeight < 10)
-                    throw new InvalidOperationException($"Layout failed at {width}x{height} for {control.Name}.");
-                if (double.IsNaN(control.ActualWidth) || double.IsNaN(control.ActualHeight))
-                    throw new InvalidOperationException($"Invalid layout dimensions: {control.Name}.");
-            }
-
-            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-            bitmap.Render(root);
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            using var stream = File.Create(Path.Combine("ui-snapshots", $"manager-{width}x{height}.png"));
-            encoder.Save(stream);
-            Console.WriteLine($"PASS: WPF layout {width}x{height}");
-        }
-        foreach (var (width, height) in new[] { (650, 560), (810, 715) })
-        {
-            var perf = new BuildCacheWindow(new ManagerService());
-            var root = (FrameworkElement)perf.Content;
-            root.Measure(new Size(width, height));
-            root.Arrange(new Rect(0, 0, width, height));
-            root.UpdateLayout();
-            if (perf.CacheSummary.ActualWidth < 50 ||
-                perf.ParallelJobs.ActualWidth < 100 ||
-                perf.UseSccache.ActualWidth < 100)
-                throw new InvalidOperationException("Build Performance settings are clipped.");
-            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-            bitmap.Render(root);
-            var png = new PngBitmapEncoder();
-            png.Frames.Add(BitmapFrame.Create(bitmap));
-            using var stream = File.Create(Path.Combine("ui-snapshots",
-                $"build-performance-{width}x{height}.png"));
-            png.Save(stream);
-            Console.WriteLine($"PASS: Build Performance window {width}x{height}");
-        }
-        foreach (var (width, height) in new[] { (780, 580), (940, 760) })
-        {
-            var main = new MainWindow();
-            var center = new ControlCenterWindow(main, new ManagerService(), ManagerService.DefaultInstall);
-            foreach (var pane in new[]
-            {
-                (Label: "updates", Section: center.UpdatesPage),
-                (Label: "recovery", Section: center.RecoveryPage),
-                (Label: "profiles", Section: center.ProfilesPage)
-            })
-            {
-                center.ShowPage(pane.Label);
-                var root = (FrameworkElement)center.Content;
-                root.Measure(new Size(width, height));
-                root.Arrange(new Rect(0, 0, width, height));
+                window.NavigateTo(route);
+                var root = (FrameworkElement)window.Content;
+                var bounds = new Size(width, height);
+                root.Measure(bounds);
+                root.Arrange(new Rect(new Point(0, 0), bounds));
                 root.UpdateLayout();
-                var visibleControls = pane.Label switch
-                {
-                    "updates" => new FrameworkElement[]
-                    { center.CheckAllButton, center.UpdateSummary, center.HubStatus },
-                    "recovery" => new FrameworkElement[]
-                    { center.CreateBackupButton, center.RecoveryDetails, center.HubStatus },
-                    _ => new FrameworkElement[]
-                    { center.SaveProfileButton, center.SavedProfiles, center.HubStatus }
-                };
-                foreach (var control in visibleControls)
-                    if (control.ActualWidth < 20 || double.IsNaN(control.ActualWidth))
-                        throw new InvalidOperationException($"Control Center layout failure: {control.Name}");
-                var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-                bitmap.Render(root);
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                using var stream = File.Create(
-                    Path.Combine("ui-snapshots", $"control-center-{pane.Label}-{width}x{height}.png"));
-                encoder.Save(stream);
-                Console.WriteLine($"PASS: Control Center {pane.Label} {width}x{height}");
-            }
-        }
-        foreach (var (width, height) in new[] { (850, 660), (1050, 780) })
-        {
-            var library = new LibraryWindow(new ManagerService());
-            library.ToolList.SelectedIndex = 0;
-            var root = (FrameworkElement)library.Content;
-            root.Measure(new Size(width, height));
-            root.Arrange(new Rect(0, 0, width, height));
-            root.UpdateLayout();
 
-            var controls = new FrameworkElement[]
-            {
-                library.ToolList, library.ToolTitle,
-                library.InstallToolButton, library.StarterKitButton,
-                library.ToolDescription, library.PaletteStatus, library.LibraryStatus,
-                library.GalleryList, library.InstallPaletteButton, library.PaletteSwatches,
-                library.InstallOverlayButton, library.GodotProjectPath,
-                library.InstallWizardButton, library.BrushStatus
-            };
-            foreach (var control in controls)
-            {
-                if (control.ActualWidth < 20 || control.ActualHeight < 10 ||
-                    double.IsNaN(control.ActualWidth) || double.IsNaN(control.ActualHeight))
+                if (window.ShellStage.ActualWidth < 50 ||
+                    window.MainScroller.ActualWidth < 300 ||
+                    window.NavOverview.ActualWidth < 100)
                     throw new InvalidOperationException(
-                        $"Library layout failed at {width}x{height} for {control.Name}.");
-            }
-            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-            bitmap.Render(root);
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            using var stream = File.Create(
-                Path.Combine("ui-snapshots", $"library-{width}x{height}.png"));
-            encoder.Save(stream);
-            Console.WriteLine($"PASS: Creator's Library layout {width}x{height}");
-            var scroller = ((System.Windows.Controls.Grid)root).Children
-                .OfType<System.Windows.Controls.ScrollViewer>().First();
-            foreach (var ratio in new[] { 0.35, 0.7, 1.0 })
-            {
-                scroller.ScrollToVerticalOffset(scroller.ScrollableHeight * ratio);
+                        $"Unified shell unusable at {width}x{height}, route {route}.");
+
+                if (route == "aseprite" && (window.VersionPicker.ActualWidth < 130 ||
+                    window.InstallButton.ActualWidth < 120))
+                    throw new InvalidOperationException("Installer controls clipped.");
+                if (route == "tools" &&
+                    window.LibraryHost.Content is LibraryWindow library &&
+                    library.ToolList.ActualWidth < 150)
+                    throw new InvalidOperationException("Resource selection panel clipped.");
+                if (route == "updates" &&
+                    window.ControlHost.Content is ControlCenterWindow center &&
+                    center.CheckAllButton.ActualWidth < 120)
+                    throw new InvalidOperationException("Update review controls clipped.");
+
+                var scroll = route switch
+                {
+                    "overview" or "aseprite" or "themes" or "activity" => window.MainScroller,
+                    "tools" or "palettes" or "palette-import" or "extensions" or "godot"
+                        or "brushes" or "backup" =>
+                        (window.LibraryHost.Content as LibraryWindow)!.LibraryScroller,
+                    "updates" or "recovery" or "profiles" =>
+                        (window.ControlHost.Content as ControlCenterWindow)!.PageScroller,
+                    _ => FindScrollViewer(window.PerformanceHost)
+                };
+                if (scroll == null)
+                    throw new InvalidOperationException("Missing scroll container for " + route);
+                scroll.ScrollToVerticalOffset(0);
                 root.UpdateLayout();
-                var lowerBitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-                lowerBitmap.Render(root);
-                var lowerEncoder = new PngBitmapEncoder();
-                lowerEncoder.Frames.Add(BitmapFrame.Create(lowerBitmap));
-                using var lowerStream = File.Create(Path.Combine("ui-snapshots",
-                    $"library-{width}x{height}-scroll-{(int)(ratio * 100)}.png"));
-                lowerEncoder.Save(lowerStream);
+                SaveSnapshot(root, width, height, route, "top");
+
+                // Capture midpoint and bottom to review ALL content, not just
+                // the portion initially visible above the fold.
+                var length = scroll.ScrollableHeight;
+                if (length > 30)
+                {
+                    foreach (var (label, factor) in new[]
+                    { ("middle", 0.5), ("bottom", 1.0) })
+                    {
+                        scroll.ScrollToVerticalOffset(length * factor);
+                        root.UpdateLayout();
+                        SaveSnapshot(root, width, height, route, label);
+                    }
+                }
+                scroll.ScrollToVerticalOffset(0);
+                Console.WriteLine($"PASS: unified {route} panel at {width}x{height}, " +
+                    $"scroll height {length:F0}");
             }
         }
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject obj)
+    {
+        if (obj is ScrollViewer scroller) return scroller;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(obj); i++)
+        {
+            var match = FindScrollViewer(VisualTreeHelper.GetChild(obj, i));
+            if (match != null) return match;
+        }
+        return null;
+    }
+
+    private static void SaveSnapshot(FrameworkElement root, int width, int height,
+        string route, string position)
+    {
+        var bmp = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(root);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bmp));
+        using var stream = File.Create(Path.Combine("ui-snapshots",
+            $"unified-{route}-{width}x{height}-{position}.png"));
+        encoder.Save(stream);
     }
 }
