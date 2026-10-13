@@ -34,6 +34,8 @@ public partial class LibraryWindow : System.Windows.Controls.UserControl
     {
         _busy = value;
         ToolSearch.IsEnabled = !value;
+        foreach (var tab in new[] { TabTools, TabPalettes, TabPaletteImport, TabExtensions, TabGodot, TabBrushes, TabBackups })
+            tab.IsEnabled = !value;
         ToolFavoritesOnly.IsEnabled = !value;
         PaletteFavoritesOnly.IsEnabled = !value;
         FavoriteToolButton.IsEnabled = !value && ToolList.SelectedItem != null;
