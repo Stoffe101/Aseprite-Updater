@@ -1,10 +1,8 @@
-<Window x:Class="AsepriteManager.ControlCenterWindow"
+<UserControl x:Class="AsepriteManager.ControlCenterWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Aseprite Manager • Control Center" Width="940" Height="760"
-        MinWidth="780" MinHeight="580" WindowStartupLocation="CenterOwner"
         Background="#0C1220" Foreground="#EEF1FC" FontFamily="Segoe UI" FontSize="14">
-  <Window.Resources>
+  <UserControl.Resources>
     <SolidColorBrush x:Key="Panel" Color="#172137"/>
     <Style TargetType="Button">
       <Setter Property="Height" Value="40"/>
@@ -57,7 +55,7 @@
       <Setter Property="Foreground" Value="#B6C5DA"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
-  </Window.Resources>
+  </UserControl.Resources>
   <Grid Background="#0C1220">
     <Grid.RowDefinitions><RowDefinition Height="5"/><RowDefinition Height="*"/></Grid.RowDefinitions>
     <Border Background="#8B72E7"/>
@@ -188,4 +186,4 @@
       </ScrollViewer>
     </Grid>
   </Grid>
-</Window>
+</UserControl>
