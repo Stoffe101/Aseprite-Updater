@@ -403,12 +403,21 @@ public partial class LibraryWindow : System.Windows.Controls.UserControl
         var isTools = section == "tools";
         StarterSection.Visibility = isTools ? Visibility.Visible : Visibility.Collapsed;
         ToolSection.Visibility = isTools ? Visibility.Visible : Visibility.Collapsed;
-        PaletteSection.Visibility = section == "palettes" ? Visibility.Visible : Visibility.Collapsed;
+        PaletteSection.Visibility = section == "palette-import" ? Visibility.Visible : Visibility.Collapsed;
         GallerySection.Visibility = section == "palettes" ? Visibility.Visible : Visibility.Collapsed;
         ExtensionSection.Visibility = section == "extensions" ? Visibility.Visible : Visibility.Collapsed;
         GodotSection.Visibility = section == "godot" ? Visibility.Visible : Visibility.Collapsed;
         BrushSection.Visibility = section == "brushes" ? Visibility.Visible : Visibility.Collapsed;
         BackupSection.Visibility = section == "backup" ? Visibility.Visible : Visibility.Collapsed;
+        ToolFooterSection.Visibility = isTools ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var tab in new[] { TabTools, TabPalettes, TabPaletteImport, TabExtensions,
+            TabGodot, TabBrushes, TabBackups })
+        {
+            var active = string.Equals(tab.Tag as string, section, StringComparison.Ordinal);
+            tab.Background = new System.Windows.Media.SolidColorBrush(
+                active ? System.Windows.Media.Color.FromRgb(103, 84, 181)
+                       : System.Windows.Media.Color.FromRgb(43, 59, 86));
+        }
         LibraryScroller.ScrollToTop();
     }
 
