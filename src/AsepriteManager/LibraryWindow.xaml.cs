@@ -26,6 +26,7 @@ public partial class LibraryWindow : System.Windows.Controls.UserControl
         RefreshExtensionDetails();
 
         RefreshToolDetails();
+        ShowSection("tools");
     }
 
 
@@ -394,20 +395,21 @@ public partial class LibraryWindow : System.Windows.Controls.UserControl
             ArgumentList = { folder }
         });
     }
-    private void Navigate_Click(object sender, RoutedEventArgs e)
+    private void Navigate_Click(object sender, RoutedEventArgs e) =>
+        ShowSection((sender as System.Windows.Controls.Button)?.Tag as string ?? "tools");
+
+    public void ShowSection(string section)
     {
-        var section = (sender as System.Windows.Controls.Button)?.Tag as string;
-        FrameworkElement? target = section switch
-        {
-            "tools" => ToolSection,
-            "palettes" => GallerySection,
-            "extensions" => ExtensionSection,
-            "godot" => GodotSection,
-            "brushes" => BrushSection,
-            "backup" => BackupSection,
-            _ => null
-        };
-        target?.BringIntoView();
+        var isTools = section == "tools";
+        StarterSection.Visibility = isTools ? Visibility.Visible : Visibility.Collapsed;
+        ToolSection.Visibility = isTools ? Visibility.Visible : Visibility.Collapsed;
+        PaletteSection.Visibility = section == "palettes" ? Visibility.Visible : Visibility.Collapsed;
+        GallerySection.Visibility = section == "palettes" ? Visibility.Visible : Visibility.Collapsed;
+        ExtensionSection.Visibility = section == "extensions" ? Visibility.Visible : Visibility.Collapsed;
+        GodotSection.Visibility = section == "godot" ? Visibility.Visible : Visibility.Collapsed;
+        BrushSection.Visibility = section == "brushes" ? Visibility.Visible : Visibility.Collapsed;
+        BackupSection.Visibility = section == "backup" ? Visibility.Visible : Visibility.Collapsed;
+        LibraryScroller.ScrollToTop();
     }
 
     private void PaletteSearch_Changed(object sender,
