@@ -1,10 +1,8 @@
-<Window x:Class="AsepriteManager.BuildCacheWindow"
+<UserControl x:Class="AsepriteManager.BuildCacheWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Aseprite Manager • Build Performance" Width="810" Height="715"
-        MinWidth="650" MinHeight="560" WindowStartupLocation="CenterOwner"
         Background="#0D1424" Foreground="#F1F4FB" FontFamily="Segoe UI" FontSize="14">
-    <Window.Resources>
+    <UserControl.Resources>
         <Style TargetType="Button">
             <Setter Property="MinWidth" Value="145"/>
             <Setter Property="Height" Value="39"/>
@@ -19,7 +17,7 @@
             <Setter Property="Foreground" Value="#E8EDF8"/>
             <Setter Property="Margin" Value="0,0,0,12"/>
         </Style>
-    </Window.Resources>
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions><RowDefinition Height="5"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <Border Background="#8869D7"/>
@@ -80,4 +78,4 @@
             </StackPanel>
         </ScrollViewer>
     </Grid>
-</Window>
+</UserControl>

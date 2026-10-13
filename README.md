@@ -82,6 +82,12 @@ No sprite or asset generator is included. Auto-updating the Manager executable a
 
 Source-building a version for the very first time still takes time; repeated switches to locally cached versions should avoid recompiling. See [docs/FAST_BUILDS_V062.md](docs/FAST_BUILDS_V062.md) for cache safety, tests and limitations.
 
+## Single-window workspace (v0.7.0)
+
+The Windows interface has a persistent sidebar and focused screens for Aseprite version switching, themes, Creator's Library, updates, project profiles, recovery, build performance and logs. Resource browsing no longer launches a separate Library window. The previous backend installers, backup/rollback protections, and compiled version caches remain in place.
+
+**Visual QA:** Windows CI renders the entire application for 15 routes at 1024×720, 1366×900 and 1920×1080, with middle/bottom captures for pages that scroll. Download full-resolution screenshots, contact sheets and a JSON index from each Windows Actions run. See [docs/UNIFIED_UI_V07.md](docs/UNIFIED_UI_V07.md).
+
 ## Development
 
 1. Install the .NET 8 SDK on a Windows 11 development machine.

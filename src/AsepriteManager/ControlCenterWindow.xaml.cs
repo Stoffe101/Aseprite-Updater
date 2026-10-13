@@ -10,13 +10,14 @@ using Microsoft.Win32;
 
 namespace AsepriteManager;
 
-public partial class ControlCenterWindow : Window
+public partial class ControlCenterWindow : System.Windows.Controls.UserControl
 {
     private readonly MainWindow _main;
     private readonly ManagerService _service;
     private readonly string _installFolder;
     private string? _restoreZip;
     private bool _busy;
+    public bool IsBusy => _busy;
 
     public ControlCenterWindow(MainWindow main, ManagerService service, string installFolder)
     {
@@ -24,22 +25,18 @@ public partial class ControlCenterWindow : Window
         _service = service;
         _installFolder = installFolder;
         InitializeComponent();
-        Closing += OnClosing;
+
         ReloadProfiles();
     }
 
-    private void OnClosing(object? sender, CancelEventArgs e)
-    {
-        if (!_busy) return;
-        e.Cancel = true;
-        MessageBox.Show(this, "An operation is still running.", "Please wait",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-    }
 
     private void SetBusy(bool busy)
     {
         _busy = busy;
         CheckAllButton.IsEnabled = !busy;
+        UpdatesTab.IsEnabled = !busy;
+        RecoveryTab.IsEnabled = !busy;
+        ProfilesTab.IsEnabled = !busy;
         CreateBackupButton.IsEnabled = !busy;
         SelectRestoreButton.IsEnabled = !busy;
         RestoreButton.IsEnabled = !busy && _restoreZip != null;
@@ -57,6 +54,20 @@ public partial class ControlCenterWindow : Window
 
     public void ShowPage(string page)
     {
+        PageHeading.Text = page switch
+        {
+            "updates" => "Updates across your toolkit",
+            "recovery" => "Configuration recovery",
+            "profiles" => "Project Profiles",
+            _ => "Your creative setup"
+        };
+        PageSummary.Text = page switch
+        {
+            "updates" => "Check Aseprite, themes, tools and integrations in one place.",
+            "recovery" => "Back up and restore safely without disturbing your artwork.",
+            "profiles" => "Keep a portable inventory of your preferred tools and palettes.",
+            _ => "Manage your Aseprite workspace."
+        };
         UpdatesPage.Visibility = page == "updates" ? Visibility.Visible : Visibility.Collapsed;
         RecoveryPage.Visibility = page == "recovery" ? Visibility.Visible : Visibility.Collapsed;
         ProfilesPage.Visibility = page == "profiles" ? Visibility.Visible : Visibility.Collapsed;
@@ -72,14 +83,14 @@ public partial class ControlCenterWindow : Window
 
     private void ReviewAseprite_Click(object sender, RoutedEventArgs e)
     {
-        Close();
+        _main.NavigateTo("aseprite");
         _main.FocusAsepriteUpdates();
     }
 
     private void OpenLibrary_Click(object sender, RoutedEventArgs e)
     {
         if (_busy) return;
-        new LibraryWindow(_service) { Owner = this }.ShowDialog();
+        _main.NavigateTo("tools");
     }
 
     private void OpenManagerReleases_Click(object sender, RoutedEventArgs e)
@@ -212,7 +223,7 @@ public partial class ControlCenterWindow : Window
             FileName = "Aseprite-profile-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip",
             DefaultExt = ".zip"
         };
-        if (save.ShowDialog(this) != true) return;
+        if (save.ShowDialog(Window.GetWindow(this)) != true) return;
         SetBusy(true);
         try
         {
@@ -238,7 +249,7 @@ public partial class ControlCenterWindow : Window
             Title = "Choose an Aseprite profile backup ZIP",
             Filter = "ZIP archive (*.zip)|*.zip", CheckFileExists = true
         };
-        if (open.ShowDialog(this) != true) return;
+        if (open.ShowDialog(Window.GetWindow(this)) != true) return;
         _restoreZip = null;
         RestoreButton.IsEnabled = false;
         try
@@ -264,7 +275,7 @@ public partial class ControlCenterWindow : Window
     {
         if (_restoreZip == null) return;
         var selectedZip = _restoreZip;
-        var answer = MessageBox.Show(this,
+        var answer = MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             "REPLACE THE ACTIVE ASEPRITE CONFIGURATION?\n\n" +
             "ZIP: " + selectedZip + "\n\n" +
             "The ZIP has been checked, but restore will replace the complete active configuration " +
@@ -304,7 +315,7 @@ public partial class ControlCenterWindow : Window
     private void BrowseProfileProject_Click(object sender, RoutedEventArgs e)
     {
         var select = new OpenFolderDialog { Title = "Choose a Godot project folder (optional)" };
-        if (select.ShowDialog(this) == true) ProjectFolderText.Text = select.FolderName;
+        if (select.ShowDialog(Window.GetWindow(this)) == true) ProjectFolderText.Text = select.FolderName;
     }
 
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
@@ -330,7 +341,7 @@ public partial class ControlCenterWindow : Window
             Title = "Import resource profile JSON", Filter = "Profile JSON (*.json)|*.json",
             CheckFileExists = true
         };
-        if (open.ShowDialog(this) != true) return;
+        if (open.ShowDialog(Window.GetWindow(this)) != true) return;
         try
         {
             var profile = ProjectProfiles.Load(open.FileName);
@@ -374,7 +385,7 @@ public partial class ControlCenterWindow : Window
             Title = "Export portable project profile", Filter = "JSON (*.json)|*.json",
             FileName = profile.Name.Replace('/', '-').Replace('\\', '-') + "-Aseprite.json"
         };
-        if (save.ShowDialog(this) != true) return;
+        if (save.ShowDialog(Window.GetWindow(this)) != true) return;
         try
         {
             ProjectProfiles.Export(profile, save.FileName);

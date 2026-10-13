@@ -1,11 +1,9 @@
-<Window x:Class="AsepriteManager.LibraryWindow"
+<UserControl x:Class="AsepriteManager.LibraryWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Aseprite Manager • Resource Library" Width="1050" Height="780"
-        MinWidth="850" MinHeight="625" WindowStartupLocation="CenterOwner"
         Background="#0C1220" Foreground="#F4F5FB" FontFamily="Segoe UI"
         FontSize="14" UseLayoutRounding="True">
-    <Window.Resources>
+    <UserControl.Resources>
         <SolidColorBrush x:Key="Panel" Color="#172137"/>
         <Style TargetType="Button">
             <Setter Property="MinWidth" Value="130"/>
@@ -71,30 +69,31 @@
             <Setter Property="BorderBrush" Value="#405271"/>
             <Setter Property="Padding" Value="11,9"/>
         </Style>
-    </Window.Resources>
+    </UserControl.Resources>
     <Grid Background="#0C1220">
         <Grid.RowDefinitions><RowDefinition Height="5"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <Border Grid.Row="0" Background="#8068DD"/>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer x:Name="LibraryScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="27,24,27,25">
                 <TextBlock Text="ASEPRITE MANAGER  /  CREATOR'S LIBRARY"
                            Foreground="#B7A7F4" FontWeight="Bold" FontSize="12"/>
-                <TextBlock Text="Useful tools. Less busywork." FontSize="27" FontWeight="Bold"
+                <TextBlock Text="Creator’s Library" FontSize="23" FontWeight="Bold"
                            TextWrapping="Wrap" Margin="0,7,0,5"/>
-                <TextBlock Text="Curated for PixelTown's square-grid terrain, small characters, equipment layers and Godot asset workflow."
+                <TextBlock Text="Find and manage resources without leaving Aseprite Manager."
                            Foreground="#B5C1DA" TextWrapping="Wrap" Margin="0,0,0,20"/>
 
-                <WrapPanel Margin="0,0,0,13">
-                    <Button Content="Tools" Tag="tools" Click="Navigate_Click" MinWidth="96" Height="36"/>
-                    <Button Content="Palettes" Tag="palettes" Click="Navigate_Click" MinWidth="98" Height="36"/>
-                    <Button Content="Extensions" Tag="extensions" Click="Navigate_Click" MinWidth="108" Height="36"/>
-                    <Button Content="Godot" Tag="godot" Click="Navigate_Click" MinWidth="96" Height="36"/>
-                    <Button Content="Brushes" Tag="brushes" Click="Navigate_Click" MinWidth="96" Height="36"/>
-                    <Button Content="Backups" Tag="backup" Click="Navigate_Click" MinWidth="96" Height="36"/>
+                <WrapPanel Margin="0,0,0,14">
+                    <Button x:Name="TabTools" Content="Tools" Tag="tools" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabPaletteImport" Content="Import" Tag="palette-import" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabPalettes" Content="Palettes" Tag="palettes" Click="Navigate_Click" MinWidth="98" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabExtensions" Content="Extensions" Tag="extensions" Click="Navigate_Click" MinWidth="108" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabGodot" Content="Godot" Tag="godot" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabBrushes" Content="Brushes" Tag="brushes" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
+                    <Button x:Name="TabBackups" Content="Backups" Tag="backup" Click="Navigate_Click" MinWidth="96" Height="36" Margin="0,0,5,8"/>
                 </WrapPanel>
 
-                <Border Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
+                <Border x:Name="StarterSection" Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
                         CornerRadius="12" Padding="17" Margin="0,0,0,17">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="225"/></Grid.ColumnDefinitions>
@@ -320,7 +319,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border Background="#17243A" BorderThickness="1" BorderBrush="#354762"
+                <Border x:Name="ToolFooterSection" Background="#17243A" BorderThickness="1" BorderBrush="#354762"
                         Padding="16" CornerRadius="12">
                     <StackPanel>
                         <TextBlock Text="INSTALLATION ACTIVITY" Foreground="#AE9CFF"
@@ -338,4 +337,4 @@
             </StackPanel>
         </ScrollViewer>
     </Grid>
-</Window>
+</UserControl>

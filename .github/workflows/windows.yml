@@ -17,7 +17,7 @@ jobs:
   build:
     name: Build and package Windows x64
     runs-on: windows-2022
-    timeout-minutes: 25
+    timeout-minutes: 40
     # API metadata tests use the read-only Actions token only for trusted
     # internal PRs and main; never expose it to fork-submitted code.
     env:
@@ -85,6 +85,13 @@ jobs:
         run: |
           dotnet run --project src/AsepriteManager/AsepriteManager.csproj --configuration Release --no-build -- --layout-smoke
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Generate full-window visual review contact sheets
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/generate_ui_review.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Publish self-contained Windows app
         run: dotnet publish src/AsepriteManager/AsepriteManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
       - name: Install Inno Setup
@@ -104,4 +111,6 @@ jobs:
             dist/*.exe
             publish/AsepriteManager.exe
             ui-snapshots/*.png
+            ui-snapshots/reviews/*.png
+            ui-snapshots/reviews/*.json
           if-no-files-found: error
