@@ -20,6 +20,10 @@ public partial class MainWindow : Window
     private DependencyReport? _dependencies;
     private string? _installedVersion;
     private bool _busy;
+    private LibraryWindow? _libraryPage;
+    private ControlCenterWindow? _controlPage;
+    private BuildCacheWindow? _performancePage;
+    private string _activeRoute = "overview";
     private readonly ConcurrentQueue<string> _pendingLog = new();
     private readonly DispatcherTimer _logTimer = new() { Interval = TimeSpan.FromMilliseconds(220) };
     private CancellationTokenSource? _pathDebounce;
@@ -44,17 +48,22 @@ public partial class MainWindow : Window
             if (ActivityLog.Text.Length > 24000)
                 ActivityLog.Text = ActivityLog.Text[^16000..];
             ActivityLog.ScrollToEnd();
+            if (_activeRoute != "activity" && batch.Length > 0)
+                ShellDetail.Text = batch.ToString().Split('\n',
+                    StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.Trim() ?? ShellDetail.Text;
         };
         _logTimer.Start();
         InstallPath.Text = LoadSavedInstallPath();
         Loaded += async (_, _) => await RefreshLocalAsync();
         Closing += OnClosing;
         RefreshButtons();
+        NavigateTo("overview");
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (!_busy) return;
+        if (!_busy && _libraryPage?.IsBusy != true &&
+            _controlPage?.IsBusy != true && _performancePage?.IsBusy != true) return;
         e.Cancel = true;
         MessageBox.Show(this, "An operation is running. Wait for it to finish before closing Aseprite Manager.",
             "Installation in progress", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -179,6 +188,9 @@ public partial class MainWindow : Window
         StatusTitle.Text = s.Stage;
         StatusDetail.Text = s.Detail;
         WorkProgress.Value = s.Percent;
+        ShellStage.Text = s.Stage;
+        ShellDetail.Text = s.Detail;
+        ShellProgress.Value = s.Percent;
     });
 
     private void VersionPicker_SelectionChanged(object sender,
@@ -554,17 +566,68 @@ public partial class MainWindow : Window
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Launch failed"); }
     }
 
-    private void OpenBuildPerformance_Click(object sender, RoutedEventArgs e)
+    private void OpenBuildPerformance_Click(object sender, RoutedEventArgs e) => NavigateTo("performance");
+
+    private void OpenControlCenter_Click(object sender, RoutedEventArgs e) => NavigateTo("updates");
+
+    private void OpenAsepritePage_Click(object sender, RoutedEventArgs e) => NavigateTo("aseprite");
+
+    private void Navigate_Click(object sender, RoutedEventArgs e)
     {
-        if (_busy) return;
-        new BuildCacheWindow(_manager) { Owner = this }.ShowDialog();
-        UpdateSelectedStatus();
+        if (sender is System.Windows.Controls.Button button && button.Tag is string route)
+            NavigateTo(route);
     }
 
-    private void OpenControlCenter_Click(object sender, RoutedEventArgs e)
+    public void NavigateTo(string route)
     {
-        if (_busy) return;
-        new ControlCenterWindow(this, _manager, TargetPath) { Owner = this }.ShowDialog();
+        if (_busy && route is not ("activity" or "aseprite" or "overview"))
+            return;
+        var library = route is "tools" or "palettes" or "extensions" or "godot" or "brushes" or "backup";
+        var control = route is "updates" or "recovery" or "profiles";
+        var performance = route == "performance";
+        if (library && _libraryPage == null)
+        {
+            _libraryPage = new LibraryWindow(_manager);
+            LibraryHost.Content = _libraryPage;
+        }
+        if (control && _controlPage == null)
+        {
+            _controlPage = new ControlCenterWindow(this, _manager, TargetPath);
+            ControlHost.Content = _controlPage;
+        }
+        if (performance && _performancePage == null)
+        {
+            _performancePage = new BuildCacheWindow(_manager);
+            PerformanceHost.Content = _performancePage;
+        }
+
+        MainScroller.Visibility = !library && !control && !performance
+            ? Visibility.Visible : Visibility.Collapsed;
+        LibraryHost.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
+        ControlHost.Visibility = control ? Visibility.Visible : Visibility.Collapsed;
+        PerformanceHost.Visibility = performance ? Visibility.Visible : Visibility.Collapsed;
+        OverviewPage.Visibility = route == "overview" ? Visibility.Visible : Visibility.Collapsed;
+        AsepritePage.Visibility = route == "aseprite" ? Visibility.Visible : Visibility.Collapsed;
+        ThemesPage.Visibility = route == "themes" ? Visibility.Visible : Visibility.Collapsed;
+        ActivityPage.Visibility = route == "activity" ? Visibility.Visible : Visibility.Collapsed;
+        if (library) _libraryPage!.ShowSection(route);
+        if (control) _controlPage!.ShowPage(route);
+        MainScroller.ScrollToTop();
+        _activeRoute = route;
+
+        foreach (var button in new[] { NavOverview, NavAseprite, NavThemes, NavTools,
+            NavUpdates, NavProfiles, NavRecovery, NavPerformance, NavActivity })
+        {
+            var target = button.Tag as string ?? "overview";
+            var active = target == route ||
+                target == "tools" && library;
+            button.Background = new System.Windows.Media.SolidColorBrush(
+                active ? System.Windows.Media.Color.FromRgb(85, 69, 153)
+                       : System.Windows.Media.Color.FromRgb(22, 34, 53));
+            button.Foreground = new System.Windows.Media.SolidColorBrush(
+                active ? System.Windows.Media.Color.FromRgb(255, 255, 255)
+                       : System.Windows.Media.Color.FromRgb(185, 200, 221));
+        }
     }
 
     public void FocusAsepriteUpdates()
@@ -573,11 +636,7 @@ public partial class MainWindow : Window
         if (!_busy) Check_Click(this, new RoutedEventArgs());
     }
 
-    private void OpenLibrary_Click(object sender, RoutedEventArgs e)
-    {
-        var window = new LibraryWindow(_manager) { Owner = this };
-        window.ShowDialog();
-    }
+    private void OpenLibrary_Click(object sender, RoutedEventArgs e) => NavigateTo("tools");
 
     private void OpenLog_Click(object sender, RoutedEventArgs e)
     {
