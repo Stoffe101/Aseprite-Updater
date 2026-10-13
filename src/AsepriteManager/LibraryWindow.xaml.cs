@@ -7,10 +7,11 @@ using Microsoft.Win32;
 
 namespace AsepriteManager;
 
-public partial class LibraryWindow : Window
+public partial class LibraryWindow : System.Windows.Controls.UserControl
 {
     private readonly ManagerService _service;
     private bool _busy;
+    public bool IsBusy => _busy;
     private string? _scriptsRevision;
 
     public LibraryWindow(ManagerService service)
@@ -23,17 +24,10 @@ public partial class LibraryWindow : Window
         GalleryList.ItemsSource = PaletteGallery.Presets;
         GalleryList.SelectedIndex = 0;
         RefreshExtensionDetails();
-        Closing += ClosingDuringInstall;
+
         RefreshToolDetails();
     }
 
-    private void ClosingDuringInstall(object? sender, CancelEventArgs e)
-    {
-        if (!_busy) return;
-        e.Cancel = true;
-        MessageBox.Show(this, "Wait for the current library operation to finish.",
-            "Installation in progress", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
 
     private void SetBusy(bool value)
     {
@@ -144,7 +138,7 @@ public partial class LibraryWindow : Window
     private async void InstallTool_Click(object sender, RoutedEventArgs e)
     {
         if (ToolList.SelectedItem is not LibraryTool tool) return;
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             $"Install {tool.Name}?\n\n{tool.Description}\n\n" +
             $"From {WorkshopLibrary.OfficialScriptsRepo} (MIT license).\n\n" +
             "Aseprite Lua scripts run code when invoked. Only install resources you trust. " +
@@ -165,7 +159,7 @@ public partial class LibraryWindow : Window
         catch (Exception ex)
         {
             SetStatus("Tool installation failed: " + ex.Message);
-            MessageBox.Show(this, ex.Message, "Tool installation failed",
+            MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow, ex.Message, "Tool installation failed",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally { SetBusy(false); RefreshToolDetails(); }
@@ -174,7 +168,7 @@ public partial class LibraryWindow : Window
     private void RemoveTool_Click(object sender, RoutedEventArgs e)
     {
         if (ToolList.SelectedItem is not LibraryTool tool) return;
-        if (MessageBox.Show(this, $"Uninstall {tool.Name}?\n\n" +
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow, $"Uninstall {tool.Name}?\n\n" +
             "Manager retains its previous files in a backup; modified resources are protected.",
             "Uninstall managed tool", MessageBoxButton.YesNo,
             MessageBoxImage.Question) != MessageBoxResult.Yes) return;
@@ -221,7 +215,7 @@ public partial class LibraryWindow : Window
             SetStatus("No managed tools installed yet.");
             return;
         }
-        if (MessageBox.Show(this, $"Update {managed.Length} installed tools?\n\n" +
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow, $"Update {managed.Length} installed tools?\n\n" +
             "Original MIT sources are fetched again. Locally changed files won't be overwritten. " +
             "Close Aseprite first.",
             "Update managed tools", MessageBoxButton.YesNo,
@@ -256,17 +250,17 @@ public partial class LibraryWindow : Window
         {
             Title = "Choose the local PixelTown Godot project folder"
         };
-        if (pick.ShowDialog(this) != true) return;
+        if (pick.ShowDialog(Window.GetWindow(this)) != true) return;
         string palette;
         try { palette = WorkshopLibrary.ExtractPixelTownPalette(pick.FolderName); }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "PixelTown folder not recognized",
+            MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow, ex.Message, "PixelTown folder not recognized",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             "Set up PixelTown's *prototype* art toolkit?\n\n" +
             "This installs four audited MIT scripts: Tiles to Layers, Pack Similar Tiles, " +
             "Move Cels, and Stroke Outside Selection, plus a locally generated color palette.\n\n" +
@@ -320,7 +314,7 @@ public partial class LibraryWindow : Window
     private void ExtractPalette_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog { Title = "Select PixelTown's Godot project folder" };
-        if (dialog.ShowDialog(this) != true) return;
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
         try
         {
             var gpl = WorkshopLibrary.ExtractPixelTownPalette(dialog.FolderName);
@@ -340,7 +334,7 @@ public partial class LibraryWindow : Window
     private void ExtractFullPalette_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog { Title = "Select local PixelTown Godot project" };
-        if (dialog.ShowDialog(this) != true) return;
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
         try
         {
             var gpl = WorkshopLibrary.ExtractPixelTownPalette(dialog.FolderName, fullDiagnostic: true);
@@ -365,7 +359,7 @@ public partial class LibraryWindow : Window
             Filter = "GIMP Palette (*.gpl)|*.gpl",
             CheckFileExists = true
         };
-        if (picker.ShowDialog(this) != true) return;
+        if (picker.ShowDialog(Window.GetWindow(this)) != true) return;
         try
         {
             var name = Path.GetFileNameWithoutExtension(picker.FileName);
@@ -488,7 +482,7 @@ public partial class LibraryWindow : Window
     private async void InstallGalleryPalette_Click(object sender, RoutedEventArgs e)
     {
         if (GalleryList.SelectedItem is not PalettePreset preset) return;
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             $"Install a managed copy of {preset.Name}?\n\nCreator: {preset.Credit}\n" +
             "Source: aseprite/aseprite on GitHub.\n\n" +
             "Aseprite may already include this palette. This creates a separate preset " +
@@ -514,7 +508,7 @@ public partial class LibraryWindow : Window
     private void RemoveGalleryPalette_Click(object sender, RoutedEventArgs e)
     {
         if (GalleryList.SelectedItem is not PalettePreset preset) return;
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             $"Uninstall your managed copy of {preset.Name}?\n\n" +
             "Aseprite's built-in palettes will not be affected. " +
             "Your managed copy will be backed up rather than permanently deleted.",
@@ -536,7 +530,7 @@ public partial class LibraryWindow : Window
             SetStatus("No managed palettes installed.");
             return;
         }
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             $"Check {installed.Length} installed managed palette(s) for updates?\n\n" +
             "Updates only replace unmodified managed copies, after saving backups. " +
             "Aseprite must be closed.",
@@ -585,7 +579,7 @@ public partial class LibraryWindow : Window
     }
     private async void InstallOverlay_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             "Install Pixeltica's MIT-licensed Tile Index Overlay?\n\n" +
             "This Lua extension creates tile-number layers and registers a keyboard shortcut. " +
             "Review its source before use, and close Aseprite before installation.",
@@ -604,7 +598,7 @@ public partial class LibraryWindow : Window
     }
     private void RemoveOverlay_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show(this, "Remove the managed Tile Index Overlay? Its backup will be retained.",
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow, "Remove the managed Tile Index Overlay? Its backup will be retained.",
             "Uninstall extension", MessageBoxButton.YesNo,
             MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         try
@@ -623,7 +617,7 @@ public partial class LibraryWindow : Window
     private void BrowseGodot_Click(object sender, RoutedEventArgs e)
     {
         var choose = new OpenFolderDialog { Title = "Select a Godot 4 project (PixelTown or other)" };
-        if (choose.ShowDialog(this) == true) GodotProjectPath.Text = choose.FolderName;
+        if (choose.ShowDialog(Window.GetWindow(this)) == true) GodotProjectPath.Text = choose.FolderName;
     }
     private void GodotProjectPath_Changed(object sender,
         System.Windows.Controls.TextChangedEventArgs e)
@@ -653,7 +647,7 @@ public partial class LibraryWindow : Window
         var root = GodotProjectPath.Text.Trim();
         try { GodotWizardManager.VerifyProject(root); }
         catch (Exception ex) { GodotStatus.Text = ex.Message; return; }
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             "Install or update the MIT-licensed Aseprite Wizard (Godot 4 branch)?\n\n" +
             "Project: " + root + "\n\n" +
             "Manager writes ONLY under addons/AsepriteWizard, retains a ZIP backup when updating, " +
@@ -679,7 +673,7 @@ public partial class LibraryWindow : Window
     }
     private void RemoveWizard_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             "Uninstall the Manager-owned Wizard from this project?\n\n" +
             "Disable the plugin in Godot first, then close Godot. " +
             "Manager preserves a ZIP backup and does not delete imported sprites, " +
@@ -715,7 +709,7 @@ public partial class LibraryWindow : Window
     private async void BackupProfile_Click(object sender, RoutedEventArgs e)
     {
         var path = ProfileBackupService.AsepriteProfile;
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             "Export the Aseprite user profile to a ZIP?\n\n" +
             "This may include personal settings, sessions, custom extensions, " +
             "brushes and palette files. Save it somewhere private. " +
@@ -729,7 +723,7 @@ public partial class LibraryWindow : Window
             DefaultExt = ".zip",
             OverwritePrompt = true
         };
-        if (save.ShowDialog(this) != true) return;
+        if (save.ShowDialog(Window.GetWindow(this)) != true) return;
         SetBusy(true);
         try
         {
@@ -756,7 +750,7 @@ public partial class LibraryWindow : Window
             Filter = "PNG files (*.png)|*.png",
             CheckFileExists = true
         };
-        if (dialog.ShowDialog(this) != true) return;
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
         try
         {
             var file = BrushVault.ImportPng(dialog.FileName);
