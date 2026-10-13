@@ -5,10 +5,11 @@ using System.Windows.Controls;
 
 namespace AsepriteManager;
 
-public partial class BuildCacheWindow : Window
+public partial class BuildCacheWindow : System.Windows.Controls.UserControl
 {
     private readonly ManagerService _service;
     private bool _busy;
+    public bool IsBusy => _busy;
     public BuildCacheWindow(ManagerService service)
     {
         _service = service;
@@ -21,12 +22,7 @@ public partial class BuildCacheWindow : Window
         if (ParallelJobs.SelectedItem == null) ParallelJobs.SelectedIndex = 0;
         ShowCompilerStatus();
         Loaded += async (_, _) => await RefreshAsync();
-        Closing += (_, e) =>
-        {
-            if (!_busy) return;
-            e.Cancel = true;
-            MessageBox.Show(this, "Wait for the cache operation to finish.");
-        };
+
     }
     private void SetBusy(bool busy)
     {
@@ -102,7 +98,7 @@ public partial class BuildCacheWindow : Window
 
     private async Task CleanAsync(string title, Action work)
     {
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             $"Clear {title}?\n\nThis cannot be undone. Your installed Aseprite and previous-install backups are NOT deleted. " +
             "A future build may require downloading or recompiling again.",
             "Confirm cache cleanup", MessageBoxButton.YesNo,
@@ -159,7 +155,7 @@ public partial class BuildCacheWindow : Window
             OperationStatus.Text = "sccache is already installed.";
             return;
         }
-        if (MessageBox.Show(this,
+        if (MessageBox.Show(Window.GetWindow(this) ?? Application.Current.MainWindow,
             "Install Mozilla sccache using the official Windows Package Manager (winget)?\n\n" +
             "This is a third-party compiler cache, not an Aseprite plugin. It can help speed up repeated builds, " +
             "but depends on the version of MSVC and CMake used. Windows may request approval.",
