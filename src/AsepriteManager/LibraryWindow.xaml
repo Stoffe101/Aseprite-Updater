@@ -73,17 +73,17 @@
     <Grid Background="#0C1220">
         <Grid.RowDefinitions><RowDefinition Height="5"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <Border Grid.Row="0" Background="#8068DD"/>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer x:Name="LibraryScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="27,24,27,25">
                 <TextBlock Text="ASEPRITE MANAGER  /  CREATOR'S LIBRARY"
                            Foreground="#B7A7F4" FontWeight="Bold" FontSize="12"/>
-                <TextBlock Text="Useful tools. Less busywork." FontSize="27" FontWeight="Bold"
+                <TextBlock Text="Creator’s Library" FontSize="23" FontWeight="Bold"
                            TextWrapping="Wrap" Margin="0,7,0,5"/>
-                <TextBlock Text="Curated for PixelTown's square-grid terrain, small characters, equipment layers and Godot asset workflow."
+                <TextBlock Text="Find and manage resources without leaving Aseprite Manager."
                            Foreground="#B5C1DA" TextWrapping="Wrap" Margin="0,0,0,20"/>
 
-                <WrapPanel Margin="0,0,0,13">
+                <WrapPanel Visibility="Collapsed" Margin="0,0,0,13">
                     <Button Content="Tools" Tag="tools" Click="Navigate_Click" MinWidth="96" Height="36"/>
                     <Button Content="Palettes" Tag="palettes" Click="Navigate_Click" MinWidth="98" Height="36"/>
                     <Button Content="Extensions" Tag="extensions" Click="Navigate_Click" MinWidth="108" Height="36"/>
@@ -92,7 +92,7 @@
                     <Button Content="Backups" Tag="backup" Click="Navigate_Click" MinWidth="96" Height="36"/>
                 </WrapPanel>
 
-                <Border Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
+                <Border x:Name="StarterSection" Background="#21284A" BorderBrush="#62589E" BorderThickness="1"
                         CornerRadius="12" Padding="17" Margin="0,0,0,17">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="225"/></Grid.ColumnDefinitions>
