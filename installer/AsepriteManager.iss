@@ -1,5 +1,5 @@
 #define MyAppName "Aseprite Manager"
-#define MyAppVersion "0.6.2"
+#define MyAppVersion "0.7.0"
 #define MyAppExeName "AsepriteManager.exe"
 
 [Setup]
